@@ -1,4 +1,4 @@
-all: parseXML reader1 tree1
+all: extractlinks reader1 tree1
 
 extractlinks: extractlinks.o printlinks.o
 	gcc extractlinks.o printlinks.o -lxml2 -o extractlinks
