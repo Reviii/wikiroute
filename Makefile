@@ -1,16 +1,17 @@
+CFLAGS = -O3 -Wall
 all: extractlinks reader1 tree1
 
 extractlinks: extractlinks.o printlinks.o
-	gcc extractlinks.o printlinks.o -lxml2 -o extractlinks
+	$(CC) $^ -lxml2 $(CFLAGS) -o $@
 
 reader1: reader1.c
-	gcc reader1.c -lxml2 -o reader1
+	$(CC) $^ -lxml2 $(CFLAGS) -o $@
 
 tree1: tree1.c
-	gcc tree1.c -lxml2 -o tree1
+	$(CC) $^ -lxml2 $(CFLAGS) -o $@
 
 %.o: %.c
-	gcc -c $< -o $@
+	$(CC) -c $< $(CFLAGS) -o $@
 
 clean:
-	rm parseXML reader1 tree1 *.o
+	rm -f extractlinks reader1 tree1 *.o
