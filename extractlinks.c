@@ -13,9 +13,10 @@
 #define STATE_FORMAT 5
 #define STATE_TEXT 6
 
-extern void printlinks(const unsigned char * wikiText, int length);
+extern void printlinks(const char * wikiText, int length);
+
 static int state = STATE_NULL;
-static char title[256];
+static xmlChar * title;
 bool hasTitle = false;
 bool correctFormat = false;
 /**
@@ -24,7 +25,7 @@ bool correctFormat = false;
  *
  * Dump information about the current node
  */
-static bool noColon(const unsigned char * str) {
+static bool noColon(const xmlChar * str) {
     for (int i=0;str[i];i++) {
         if (str[i]==':') {
             return false;
@@ -44,20 +45,20 @@ processNode(xmlTextReaderPtr reader) {
     nodeType = xmlTextReaderNodeType(reader);
     switch (state) {
     case STATE_NULL:
-        if (depth==0&&nodeType==1&&strcmp(name, "mediawiki")==0) {
+        if (depth==0&&nodeType==1&&xmlStrEqual(name, (const xmlChar *)"mediawiki")) {
             state = STATE_MEDIAWIKI;
         }
         break;
     case STATE_MEDIAWIKI:
-        if (depth==1&&nodeType==1&&strcmp(name, "page")==0) {
+        if (depth==1&&nodeType==1&&xmlStrEqual(name, (const xmlChar *) "page")) {
             state = STATE_PAGE;
         } else if (depth==0) state = STATE_NULL;
         break;
     case STATE_PAGE:
         if (depth==2&&nodeType==1) {
-            if (strcmp(name, "title")==0) {
+            if (xmlStrEqual(name, (const xmlChar *) "title")) {
                 state = STATE_TITLE;
-            } else if (strcmp(name, "revision")==0) {
+            } else if (xmlStrEqual(name, (const xmlChar *) "revision")) {
                 state = STATE_REVISION;
             }
         } else if (depth==1) {
@@ -67,9 +68,9 @@ processNode(xmlTextReaderPtr reader) {
         }
         break;
     case STATE_TITLE:
-        if (depth==3&&nodeType==3&&strcmp(name, "#text")==0) {
+        if (depth==3&&nodeType==3&&xmlStrEqual(name, (const xmlChar *) "#text")) {
             if (value) {
-                strncpy(title, value, 256);
+                title = xmlStrndup(value, 256);
                 title[255] = '\0';
                 hasTitle = true;
             }
@@ -78,17 +79,17 @@ processNode(xmlTextReaderPtr reader) {
         break;
     case STATE_REVISION:
         if (depth==3&&nodeType==1) {
-            if (strcmp(name, "format")==0) {
+            if (xmlStrEqual(name, (const xmlChar *) "format")) {
                 state = STATE_FORMAT;
-            } else if (strcmp(name, "text")==0) {
+            } else if (xmlStrEqual(name, (const xmlChar *) "text")) {
                 state = STATE_TEXT;
             }
         } else if (depth==2) state = STATE_PAGE;
         break;
     case STATE_FORMAT:
-        if (depth==4&&nodeType==3&&strcmp(name, "#text")==0) {
+        if (depth==4&&nodeType==3&&xmlStrEqual(name, (const xmlChar *) "#text")) {
             if (value) {
-                correctFormat = !strcmp(value, "text/x-wiki");
+                correctFormat = xmlStrEqual(value, (const xmlChar *) "text/x-wiki");
                 if (!correctFormat) {
                     fprintf(stderr, "Unexpected format: '%s', expected 'text/x-wiki'\n", value);
                 }
@@ -97,11 +98,11 @@ processNode(xmlTextReaderPtr reader) {
         } else if (depth==3) state = STATE_REVISION;
         break;
     case STATE_TEXT:
-        if (depth==4&&nodeType==3&&strcmp(name, "#text")==0) {
+        if (depth==4&&nodeType==3&&xmlStrEqual(name, (const xmlChar *) "#text")) {
             if (hasTitle&&correctFormat&&value&&noColon(title)) {
                 printf("%s", title);
                 putchar('\0');
-                printlinks(value, strlen(value));
+                printlinks((char *) value, xmlStrlen(value));
                 putchar('\n');
             } else if (hasTitle) {
 //                fprintf(stderr, "Ignored page called '%s'\n", title);

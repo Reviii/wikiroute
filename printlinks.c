@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdbool.h>
-static void printlink(const unsigned char * link, int length, bool redirect, bool ignore) {
+static void printlink(const char * link, int length, bool redirect, bool ignore) {
     if (ignore) {
         return;
     }
@@ -14,18 +14,18 @@ static void printlink(const unsigned char * link, int length, bool redirect, boo
     }
     putchar('\0');
 }
-static const unsigned char * syntax = "#REDIRECT [[";
+static const char * syntax = "#REDIRECT [[";
 
 // TODO: split state into several parts:
 // the global state and how many characters have been correct
 // something like STATE_HASH STATE_REDIRECT STATE_REDIRECTINOTHERLANGUAGE and STATE_LINK
 // syntax should be split up in a similar way
 
-void printlinks(const unsigned char * wikiText, int length) {
+void printlinks(const char * wikiText, int length) {
     int state = 0;
     bool redirect = true;
     bool ignore = false;
-    unsigned char * link = NULL;
+    const char * link = NULL;
     for (int i=0;i<length;i++) {
         if (state<12) {
             if (wikiText[i]==syntax[state]) {
@@ -39,7 +39,7 @@ void printlinks(const unsigned char * wikiText, int length) {
                 ignore = false;
             }
         } else {
-            if (!link) link = (unsigned char *) (wikiText+i);
+            if (!link) link = (wikiText+i);
             if (wikiText[i]==']'||wikiText[i]=='|'||wikiText[i]=='#') {
                 printlink(link, (wikiText+i)-link, redirect, ignore);
                 link = NULL;
