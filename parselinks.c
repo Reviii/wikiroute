@@ -34,19 +34,23 @@ char ** getTitleListFromFile(FILE * f, size_t * titleCount) {
         res[i] = stringBuf.content + offsets[i];
     }
     res[offsetBuf.used/sizeof(offsets[0])-1] = NULL;
-    *titleCount = offsetBuf.used/sizeof(offsets[0]);
+    *titleCount = offsetBuf.used/sizeof(offsets[0])-1;
+    free(offsets);
+    // not freeing stringBuf content, because it is referenced by res
     return res;
 }
 
 size_t title2id(char ** id2title, size_t titleCount, char * title) {
-    size_t first, last, middle;
+    ssize_t first, last, middle;
     first = 0;
     last = titleCount - 1;
     middle = (first+last)/2;
     while (first <= last) {
-        if (strcmp(id2title[middle], title)<0) {
-            first = middle+1;
-        } else if (strcmp(id2title[middle], title)==0) {
+//        fprintf(stderr, "Comparing to id %d/%d\n", middle, titleCount);
+        int cmp = strcmp(id2title[middle], title);
+        if (cmp<0) {
+            first = middle+1; // overflow?
+        } else if (cmp==0) {
             return middle+1;
         } else {
             last = middle-1;
@@ -77,7 +81,7 @@ int main(int argc, char **argv) {
  /*   for (int i=0;id2title[i];i++) {
         printf("%s\n", id2title[i]);
     }*/
-    fprintf(stderr, "Ready\n");
+    fprintf(stderr, "%d pages have been given an unique id\n", titleCount);
     while (fgets(search, sizeof(search), stdin)) {
         search[strlen(search)-1] = '\0'; // remove last character
         size_t id = title2id(id2title, titleCount, search);
