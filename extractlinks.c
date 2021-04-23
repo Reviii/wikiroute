@@ -70,8 +70,8 @@ processNode(xmlTextReaderPtr reader) {
     case STATE_TITLE:
         if (depth==3&&nodeType==3&&xmlStrEqual(name, (const xmlChar *) "#text")) {
             if (value) {
-                title = xmlStrndup(value, 256);
-                title[255] = '\0';
+                if (title) free(title);
+                title = xmlStrdup(value);
                 hasTitle = true;
             }
             state = STATE_PAGE;
