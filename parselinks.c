@@ -4,7 +4,7 @@
 #include <string.h>
 #include "buffer.h"
 
-char ** getTitleListFromFile(FILE * f) {
+char ** getTitleListFromFile(FILE * f, size_t * titleCount) {
     // everything between newline and \0 is a title
     struct buffer stringBuf = bufferCreate();
     struct buffer offsetBuf = bufferCreate();
@@ -34,13 +34,32 @@ char ** getTitleListFromFile(FILE * f) {
         res[i] = stringBuf.content + offsets[i];
     }
     res[offsetBuf.used/sizeof(offsets[0])-1] = NULL;
+    *titleCount = offsetBuf.used/sizeof(offsets[0]);
     return res;
 }
 
-
+size_t title2id(char ** id2title, size_t titleCount, char * title) {
+    size_t first, last, middle;
+    first = 0;
+    last = titleCount - 1;
+    middle = (first+last)/2;
+    while (first <= last) {
+        if (strcmp(id2title[middle], title)<0) {
+            first = middle+1;
+        } else if (strcmp(id2title[middle], title)==0) {
+            return middle+1;
+        } else {
+            last = middle-1;
+        }
+        middle = (first+last)/2;
+    }
+    return -1;
+}
 int main(int argc, char **argv) {
     FILE * in = NULL;
     char ** id2title;
+    size_t titleCount;
+    char search[256];
     if (argc<2) {
         fprintf(stderr, "Usage: %s <file>\n", argv[0]);
         return 1;
@@ -54,9 +73,19 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Failed to open file\n");
         return 1;
     }
-    id2title = getTitleListFromFile(in);
-    for (int i=0;id2title[i];i++) {
+    id2title = getTitleListFromFile(in, &titleCount);
+ /*   for (int i=0;id2title[i];i++) {
         printf("%s\n", id2title[i]);
+    }*/
+    fprintf(stderr, "Ready\n");
+    while (fgets(search, sizeof(search), stdin)) {
+        search[strlen(search)-1] = '\0'; // remove last character
+        size_t id = title2id(id2title, titleCount, search);
+        if (id==-1) {
+            printf("Could not find '%s'\n", search);
+            continue;
+        }
+        printf("Id: %u\n", id);
     }
     return 0;
 }
