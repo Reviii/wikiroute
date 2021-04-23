@@ -1,5 +1,5 @@
 CFLAGS = -O3 -Wall
-all: extractlinks parselinks reader1 tree1
+all: extractlinks parselinks
 
 extractlinks: extractlinks.o printlinks.o
 	$(CC) $^ -lxml2 $(CFLAGS) -o $@
@@ -7,14 +7,11 @@ extractlinks: extractlinks.o printlinks.o
 parselinks: parselinks.o buffer.o
 	$(CC) $^ $(CFLAGS) -o $@
 
-reader1: reader1.c
-	$(CC) $^ -lxml2 $(CFLAGS) -o $@
-
-tree1: tree1.c
-	$(CC) $^ -lxml2 $(CFLAGS) -o $@
-
 %.o: %.c
 	$(CC) -c $< $(CFLAGS) -o $@
 
+links.txt: wikidump.bz2 extractlinks
+	bzcat wikidump.bz2 | ./extractlinks - | LC_ALL=C sort >links.txt
+
 clean:
-	rm -f extractlinks reader1 tree1 *.o
+	rm -f extractlinks parselinks *.o
