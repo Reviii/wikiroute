@@ -89,7 +89,10 @@ int main(int argc, char **argv) {
             printf("Could not find '%s'\n", search);
             continue;
         }
-        printf("Id: %u\n", id);
+        printf("Id: %u\nNearby pages:\n", id);
+        for (int i=-2;i<3;i++) {
+            if (id+i<titleCount && id+i>=0) printf("%u: %s\n", id+i, id2title[id+i]);
+        }
     }
     return 0;
 }
