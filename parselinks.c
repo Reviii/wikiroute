@@ -27,7 +27,7 @@ char ** getTitleListFromFile(FILE * f, size_t * titleCount) {
             }
         }
     }
-    bufferCompact(&stringBuf);
+//    bufferCompact(&stringBuf);
     offsets = (size_t *)offsetBuf.content;
     res = malloc(offsetBuf.used/sizeof(offsets[0])*sizeof(char *));
     for (int i=0;i<offsetBuf.used/sizeof(offsets[0])-1;i++) {
