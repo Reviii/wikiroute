@@ -51,7 +51,7 @@ size_t title2id(char ** id2title, size_t titleCount, char * title) {
         if (cmp<0) {
             first = middle+1; // overflow?
         } else if (cmp==0) {
-            return middle+1;
+            return middle;
         } else {
             last = middle-1;
         }
