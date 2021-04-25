@@ -104,10 +104,6 @@ processNode(xmlTextReaderPtr reader) {
                 putchar('\0');
                 printlinks((char *) value, xmlStrlen(value));
                 putchar('\n');
-            } else if (hasTitle) {
-//                fprintf(stderr, "Ignored page called '%s'\n", title);
-            } else {
-                fprintf(stderr, "Ignored page due to lack of title\n");
             }
             state = STATE_REVISION;
         } else if (depth==3) state = STATE_REVISION;
