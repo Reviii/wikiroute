@@ -75,7 +75,7 @@ struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount) {
             *(bufferAdd(&titleBuf, 1)) = (char) c;
             if (c=='\0') {
                 nodes[id] = realloc(nodes[id], sizeof(struct wikiNode)+nodes[id]->forward_length*4+4); // FIXME: improve performance
-                nodes[id]->references[nodes[id]->forward_length] = title2id(id2title, titleCount, titleBuf.content);
+                nodes[id]->references[nodes[id]->forward_length] = title2id(id2title, titleCount, titleBuf.content+1); // titleBuf.content+1, becauce the first char needs to be ignored
                 nodes[id]->forward_length++;
             }
             if (c=='\n') {
