@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "buffer.h"
+#include "nodetypes.h"
 
 char ** getTitleListFromFile(FILE * f, size_t * titleCount) {
     // everything between newline and \0 is a title
@@ -27,7 +28,9 @@ char ** getTitleListFromFile(FILE * f, size_t * titleCount) {
             }
         }
     }
-//    bufferCompact(&stringBuf);
+    // uncomment the following line to reduce virtual memory usage
+    //bufferCompact(&stringBuf);
+
     offsets = (size_t *)offsetBuf.content;
     res = malloc(offsetBuf.used/sizeof(offsets[0])*sizeof(char *));
     for (int i=0;i<offsetBuf.used/sizeof(offsets[0])-1;i++) {
@@ -59,10 +62,44 @@ size_t title2id(char ** id2title, size_t titleCount, char * title) {
     }
     return -1;
 }
+struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount) {
+    int c;
+    int id = 0;
+    bool inLink = false;
+    struct buffer titleBuf = bufferCreate();
+    struct wikiNode ** nodes = malloc(titleCount*sizeof(struct wikiNode *));
+    rewind(f);
+    nodes[0] = calloc(sizeof(struct wikiNode), 1);
+    while ((c=fgetc(f))!=EOF) {
+        if (inLink) {
+            *(bufferAdd(&titleBuf, 1)) = (char) c;
+            if (c=='\0') {
+                nodes[id] = realloc(nodes[id], sizeof(struct wikiNode)+nodes[id]->forward_length*4+4); // FIXME: improve performance
+                nodes[id]->references[nodes[id]->forward_length] = title2id(id2title, titleCount, titleBuf.content);
+                nodes[id]->forward_length++;
+            }
+            if (c=='\n') {
+                inLink = false;
+                titleBuf.used = 0;
+                id++;
+                nodes[id] = calloc(sizeof(struct wikiNode), 1);
+            }
+        } else {
+            if (c=='\0') {
+                inLink = true;
+            }
+        }
+    }
+    return nodes;
+    // iterate over nodes
+      // give each forward link a backward one
+}
+
 int main(int argc, char **argv) {
     FILE * in = NULL;
     char ** id2title;
     size_t titleCount;
+    struct wikiNode ** id2node;
     char search[256];
     if (argc<2) {
         fprintf(stderr, "Usage: %s <file>\n", argv[0]);
@@ -78,10 +115,9 @@ int main(int argc, char **argv) {
         return 1;
     }
     id2title = getTitleListFromFile(in, &titleCount);
- /*   for (int i=0;id2title[i];i++) {
-        printf("%s\n", id2title[i]);
-    }*/
-    fprintf(stderr, "%d pages have been given an unique id\n", titleCount);
+    fprintf(stderr, "%u pages have been given an unique id\n", titleCount);
+
+    id2node = getNodes(in, id2title, titleCount);
     while (fgets(search, sizeof(search), stdin)) {
         search[strlen(search)-1] = '\0'; // remove last character
         size_t id = title2id(id2title, titleCount, search);
@@ -92,6 +128,11 @@ int main(int argc, char **argv) {
         printf("Id: %u\nNearby pages:\n", id);
         for (int i=-2;i<3;i++) {
             if (id+i<titleCount && id+i>=0) printf("%u: %s\n", id+i, id2title[id+i]);
+        }
+        printf("Links to:\n");
+        for (int i=0;i < id2node[id]->forward_length;i++) {
+            size_t linkedId = id2node[id]->references[i];
+            printf("%u: %s\n", linkedId, id2title[linkedId]);
         }
     }
     return 0;
