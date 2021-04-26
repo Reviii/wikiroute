@@ -1,5 +1,6 @@
 CFLAGS = -O3 -Wall
-all: extractlinks parselinks
+ALL = extractlinks parselinks
+all: $(ALL)
 
 extractlinks: extractlinks.o printlinks.o
 	$(CC) $^ -lxml2 $(CFLAGS) -o $@
@@ -14,4 +15,4 @@ links.txt: wikidump.bz2 extractlinks
 	bzcat wikidump.bz2 | ./extractlinks - | LC_ALL=C sort >links.txt
 
 clean:
-	rm -f extractlinks parselinks *.o
+	rm -f $(ALL) *.o
