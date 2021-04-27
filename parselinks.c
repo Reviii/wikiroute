@@ -6,12 +6,6 @@
 #include "buffer.h"
 #include "nodetypes.h"
 
-char normalizeTitleChar(char c) {
-    if (c>='A'&&c<='Z') return c+'a'-'A';
-    if (c=='_') return ' ';
-    return c;
-}
-
 char ** getTitleListFromFile(FILE * f, size_t * titleCount) {
     // everything between newline and \0 is a title
     struct buffer stringBuf = bufferCreate();
@@ -24,7 +18,7 @@ char ** getTitleListFromFile(FILE * f, size_t * titleCount) {
     *(size_t *)bufferAdd(&offsetBuf, sizeof(size_t)) = stringBuf.used;
     while ((c=fgetc(f))!=EOF) {
         if (inTitle) {
-            *bufferAdd(&stringBuf, sizeof(char)) = normalizeTitleChar(c);
+            *bufferAdd(&stringBuf, sizeof(char)) = (char) c;
             if (!c) {
                 inTitle = false;
                 *(size_t *)bufferAdd(&offsetBuf, sizeof(size_t)) = stringBuf.used;
@@ -87,7 +81,7 @@ struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount) {
     nodes[0] = calloc(sizeof(struct wikiNode), 1);
     while ((c=fgetc(f))!=EOF) {
         if (inLink) {
-            *(bufferAdd(&titleBuf, 1)) = normalizeTitleChar(c);
+            *(bufferAdd(&titleBuf, 1)) = (char) c;
             if (c=='\0') {
                 size_t ref = title2id(id2title, titleCount, titleBuf.content+1); // titleBuf.content+1, becauce the first char needs to be ignored
                 titleBuf.used = 0;
