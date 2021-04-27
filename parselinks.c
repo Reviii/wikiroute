@@ -105,11 +105,12 @@ struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount) {
     return nodes;
 }
 struct wikiNode ** addBackwardRefs(struct wikiNode ** nodes, size_t titleCount) {
-    for (int i=0;i<titleCount;i++) {
-        struct wikiNode from = *nodes[i];
-        for (int j=0;j<from.forward_length;j++) {
-            nodes[from.references[i]] = increaseNodeAllocSize(nodes[from.references[i]]);
-            struct wikiNode * to = nodes[from.references[i]];
+    for (size_t i=0;i<titleCount;i++) {
+        struct wikiNode * const from = nodes[i];
+        for (int j=0;j<(from->forward_length);j++) {
+            if (from==nodes[from->references[j]]) continue;
+            nodes[from->references[j]] = increaseNodeAllocSize(nodes[from->references[j]], from->references[j]);
+            struct wikiNode * to = nodes[from->references[j]];
             to->references[to->forward_length+to->backward_length] = i;
             to->backward_length++;
         }
