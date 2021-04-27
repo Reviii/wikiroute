@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -68,8 +69,13 @@ size_t title2id(char ** id2title, size_t titleCount, char * title) {
     }
     return -1;
 }
-struct wikiNode * increaseNodeAllocSize(struct wikiNode * node) {
-    return realloc(node, sizeof(struct wikiNode)+(node->forward_length+node->backward_length)*4+4);
+struct wikiNode * increaseNodeAllocSize(struct wikiNode * node, size_t id) {
+    struct wikiNode * res = realloc(node, sizeof(struct wikiNode)+(node->forward_length+node->backward_length)*4+4);
+    if (!res) {
+        fprintf(stderr, "increaseNodeAllocSize: realloc(%p, %zu) failed (node id:%zu)\n", node, sizeof(struct wikiNode)+(node->forward_length+node->backward_length)*4+4, id);
+        assert(res);
+   }
+   return res;
 }
 struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount) {
     int c;
@@ -86,7 +92,7 @@ struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount) {
                 size_t ref = title2id(id2title, titleCount, titleBuf.content+1); // titleBuf.content+1, becauce the first char needs to be ignored
                 titleBuf.used = 0;
                 if (ref==-1) continue;
-                nodes[id] = increaseNodeAllocSize(nodes[id]);
+                nodes[id] = increaseNodeAllocSize(nodes[id], id);
                 nodes[id]->references[nodes[id]->forward_length] = ref;
                 nodes[id]->forward_length++;
             }
