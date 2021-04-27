@@ -147,6 +147,10 @@ int main(int argc, char **argv) {
     fprintf(stderr, "%zu pages have been given an unique id\n", titleCount);
 
     id2node = getNodes(in, id2title, titleCount);
+    /*free(id2title[0]);
+    free(id2title);*/
+    id2node = addBackwardRefs(id2node, titleCount);
+
     while (fgets(search, sizeof(search), stdin)) {
         search[strlen(search)-1] = '\0'; // remove last character
         size_t id = title2id(id2title, titleCount, search);
@@ -161,6 +165,11 @@ int main(int argc, char **argv) {
         printf("Links to:\n");
         for (int i=0;i < id2node[id]->forward_length;i++) {
             size_t linkedId = id2node[id]->references[i];
+            printf("%zu: %s\n", linkedId, id2title[linkedId]);
+        }
+        printf("Linked by:\n");
+        for (int i=0;i < id2node[id]->backward_length;i++) {
+            size_t linkedId = id2node[id]->references[id2node[id]->forward_length+i];
             printf("%zu: %s\n", linkedId, id2title[linkedId]);
         }
     }
