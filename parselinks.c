@@ -116,7 +116,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     id2title = getTitleListFromFile(in, &titleCount);
-    fprintf(stderr, "%u pages have been given an unique id\n", titleCount);
+    fprintf(stderr, "%zu pages have been given an unique id\n", titleCount);
 
     id2node = getNodes(in, id2title, titleCount);
     while (fgets(search, sizeof(search), stdin)) {
@@ -126,14 +126,14 @@ int main(int argc, char **argv) {
             printf("Could not find '%s'\n", search);
             continue;
         }
-        printf("Id: %u\nNearby pages:\n", id);
+        printf("Id: %zu\nNearby pages:\n", id);
         for (int i=-2;i<3;i++) {
-            if (id+i<titleCount && id+i>=0) printf("%u: %s\n", id+i, id2title[id+i]);
+            if (id+i<titleCount && id+i>=0) printf("%zu: %s\n", id+i, id2title[id+i]);
         }
         printf("Links to:\n");
         for (int i=0;i < id2node[id]->forward_length;i++) {
             size_t linkedId = id2node[id]->references[i];
-            printf("%u: %s\n", linkedId, id2title[linkedId]);
+            printf("%zu: %s\n", linkedId, id2title[linkedId]);
         }
     }
     return 0;
