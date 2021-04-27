@@ -62,6 +62,9 @@ size_t title2id(char ** id2title, size_t titleCount, char * title) {
     }
     return -1;
 }
+struct wikiNode * increaseNodeAllocSize(struct wikiNode * node) {
+    return realloc(node, sizeof(struct wikiNode)+(node->forward_length+node->backward_length)*4+4);
+}
 struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount) {
     int c;
     int id = 0;
@@ -74,7 +77,7 @@ struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount) {
         if (inLink) {
             *(bufferAdd(&titleBuf, 1)) = (char) c;
             if (c=='\0') {
-                nodes[id] = realloc(nodes[id], sizeof(struct wikiNode)+nodes[id]->forward_length*4+4); // FIXME: improve performance
+                nodes[id] = increaseNodeAllocSize(nodes[id]);
                 nodes[id]->references[nodes[id]->forward_length] = title2id(id2title, titleCount, titleBuf.content+1); // titleBuf.content+1, becauce the first char needs to be ignored
                 nodes[id]->forward_length++;
                 titleBuf.used = 0;
