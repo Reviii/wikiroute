@@ -10,7 +10,11 @@ static void printlink(const char * link, int length, bool redirect, bool ignore)
         putchar('l');
     }
     for (int i=0;i<length;i++) {
-        if (link[i]!='\n'&&link[i]!='\0') putchar(link[i]);
+        if (link[i]=='_') {
+            putchar(' ');
+        } else if (link[i]!='\n'&&link[i]!='\0') {
+            putchar(link[i]);
+        }
     }
     putchar('\0');
 }
