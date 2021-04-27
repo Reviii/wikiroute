@@ -95,8 +95,18 @@ struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount) {
         }
     }
     return nodes;
-    // iterate over nodes
-      // give each forward link a backward one
+}
+struct wikiNode ** addBackwardRefs(struct wikiNode ** nodes, size_t titleCount) {
+    for (int i=0;i<titleCount;i++) {
+        struct wikiNode from = *nodes[i];
+        for (int j=0;j<from.forward_length;j++) {
+            nodes[from.references[i]] = increaseNodeAllocSize(nodes[from.references[i]]);
+            struct wikiNode * to = nodes[from.references[i]];
+            to->references[to->forward_length+to->backward_length] = i;
+            to->backward_length++;
+        }
+    }
+    return nodes;
 }
 
 int main(int argc, char **argv) {
