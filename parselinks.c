@@ -83,10 +83,12 @@ struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount) {
         if (inLink) {
             *(bufferAdd(&titleBuf, 1)) = normalizeTitleChar(c);
             if (c=='\0') {
-                nodes[id] = increaseNodeAllocSize(nodes[id]);
-                nodes[id]->references[nodes[id]->forward_length] = title2id(id2title, titleCount, titleBuf.content+1); // titleBuf.content+1, becauce the first char needs to be ignored
-                nodes[id]->forward_length++;
+                size_t ref = title2id(id2title, titleCount, titleBuf.content+1); // titleBuf.content+1, becauce the first char needs to be ignored
                 titleBuf.used = 0;
+                if (ref==-1) continue;
+                nodes[id] = increaseNodeAllocSize(nodes[id]);
+                nodes[id]->references[nodes[id]->forward_length] = ref;
+                nodes[id]->forward_length++;
             }
             if (c=='\n') {
                 inLink = false;
