@@ -69,10 +69,7 @@ size_t title2id(char ** id2title, size_t titleCount, char * title) {
 }
 struct wikiNode * addReference(struct wikiNode * node, size_t ref, bool backward) {
     struct wikiNode * res;
-    if (backward) {
-        for (int i=0;i<node->backward_length;i++)
-            if (node->references[node->forward_length+i]==ref) return node;
-    } else {
+    if (!backward) {
         for (int i=0;i<node->forward_length;i++)
             if (node->references[i]==ref) return node;
     }
