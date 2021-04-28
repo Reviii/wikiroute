@@ -12,7 +12,7 @@ parselinks: parselinks.o buffer.o
 	$(CC) -c $< $(CFLAGS) -o $@
 
 links.txt: wikidump.bz2 extractlinks
-	bzcat wikidump.bz2 | ./extractlinks - | LC_ALL=C sort >links.txt
+	bzcat wikidump.bz2 | ./extractlinks - | LC_ALL=C sort -f >links.txt
 
 clean:
 	rm -f $(ALL) *.o

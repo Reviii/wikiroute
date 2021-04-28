@@ -6,6 +6,10 @@
 #include "buffer.h"
 #include "nodetypes.h"
 
+char uppercaseChar(char c) {
+    if (c>='a'&&c<='z') return c-32;
+    return c;
+}
 char ** getTitleListFromFile(FILE * f, size_t * titleCount) {
     // everything between newline and \0 is a title
     struct buffer stringBuf = bufferCreate();
@@ -18,7 +22,7 @@ char ** getTitleListFromFile(FILE * f, size_t * titleCount) {
     *(size_t *)bufferAdd(&offsetBuf, sizeof(size_t)) = stringBuf.used;
     while ((c=fgetc(f))!=EOF) {
         if (inTitle) {
-            *bufferAdd(&stringBuf, sizeof(char)) = (char) c;
+            *bufferAdd(&stringBuf, sizeof(char)) = uppercaseChar(c);
             if (!c) {
                 inTitle = false;
                 *(size_t *)bufferAdd(&offsetBuf, sizeof(size_t)) = stringBuf.used;
@@ -95,7 +99,7 @@ struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount) {
     nodes[0] = calloc(sizeof(struct wikiNode), 1);
     while ((c=fgetc(f))!=EOF) {
         if (inLink) {
-            *(bufferAdd(&titleBuf, 1)) = (char) c;
+            *(bufferAdd(&titleBuf, 1)) = uppercaseChar(c);
             if (c=='\0') {
                 size_t ref = title2id(id2title, titleCount, titleBuf.content+1); // titleBuf.content+1, becauce the first char needs to be ignored
                 titleBuf.used = 0;
@@ -153,10 +157,15 @@ int main(int argc, char **argv) {
     /*free(id2title[0]);
     free(id2title);*/
     id2node = addBackwardRefs(id2node, titleCount);
+    fprintf(stderr, "Created nodes\n");
 
     while (fgets(search, sizeof(search), stdin)) {
+        size_t id;
         search[strlen(search)-1] = '\0'; // remove last character
-        size_t id = title2id(id2title, titleCount, search);
+        for (int i=0;search[i];i++) {
+            search[i] = uppercaseChar(search[i]);
+        }
+        id = title2id(id2title, titleCount, search);
         if (id==-1) {
             printf("Could not find '%s'\n", search);
             continue;
