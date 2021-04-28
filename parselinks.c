@@ -63,13 +63,27 @@ size_t title2id(char ** id2title, size_t titleCount, char * title) {
     }
     return -1;
 }
-struct wikiNode * increaseNodeAllocSize(struct wikiNode * node, size_t id) {
-    struct wikiNode * res = realloc(node, sizeof(struct wikiNode)+(node->forward_length+node->backward_length)*4+4);
+struct wikiNode * addReference(struct wikiNode * node, size_t ref, bool backward) {
+    struct wikiNode * res;
+    if (backward) {
+        for (int i=0;i<node->backward_length;i++)
+            if (node->references[node->forward_length+i]==ref) return node;
+    } else {
+        for (int i=0;i<node->forward_length;i++)
+            if (node->references[i]==ref) return node;
+    }
+    res = realloc(node, sizeof(struct wikiNode)+(node->forward_length+node->backward_length)*4+4);
     if (!res) {
-        fprintf(stderr, "increaseNodeAllocSize: realloc(%p, %zu) failed (node id:%zu)\n", node, sizeof(struct wikiNode)+(node->forward_length+node->backward_length)*4+4, id);
+        fprintf(stderr, "addReference: realloc(%p, %zu) failed\n", node, sizeof(struct wikiNode)+(node->forward_length+node->backward_length)*4+4);
         assert(res);
-   }
-   return res;
+    }
+    res->references[res->forward_length+res->backward_length] = ref;
+    if (backward) {
+        res->backward_length++;
+    } else {
+        res->forward_length++;
+    }
+    return res;
 }
 struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount) {
     int c;
@@ -86,9 +100,7 @@ struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount) {
                 size_t ref = title2id(id2title, titleCount, titleBuf.content+1); // titleBuf.content+1, becauce the first char needs to be ignored
                 titleBuf.used = 0;
                 if (ref==-1) continue;
-                nodes[id] = increaseNodeAllocSize(nodes[id], id);
-                nodes[id]->references[nodes[id]->forward_length] = ref;
-                nodes[id]->forward_length++;
+                nodes[id] = addReference(nodes[id], ref, false);
             }
             if (c=='\n') {
                 inLink = false;
@@ -109,10 +121,7 @@ struct wikiNode ** addBackwardRefs(struct wikiNode ** nodes, size_t titleCount) 
         struct wikiNode * const from = nodes[i];
         for (int j=0;j<(from->forward_length);j++) {
             if (from==nodes[from->references[j]]) continue;
-            nodes[from->references[j]] = increaseNodeAllocSize(nodes[from->references[j]], from->references[j]);
-            struct wikiNode * to = nodes[from->references[j]];
-            to->references[to->forward_length+to->backward_length] = i;
-            to->backward_length++;
+            nodes[from->references[j]] = addReference(nodes[from->references[j]], i, true);
         }
     }
     return nodes;
