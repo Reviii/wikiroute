@@ -1,6 +1,9 @@
 #include <inttypes.h>
 struct wikiNode {
-    uint8_t dist_a;
+    union {
+        uint8_t dist_a;
+        bool isRedirect;
+    };
     uint8_t dist_b;
     uint16_t forward_length;
     uint32_t backward_length;

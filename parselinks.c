@@ -99,6 +99,7 @@ struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount) {
             *(bufferAdd(&titleBuf, 1)) = uppercaseChar(c);
             if (c=='\0') {
                 size_t ref = title2id(id2title, titleCount, titleBuf.content+1); // titleBuf.content+1, becauce the first char needs to be ignored
+                if (titleBuf.content[0]==uppercaseChar('r')) nodes[id]->isRedirect = true;
                 titleBuf.used = 0;
                 if (ref==-1) continue;
                 nodes[id] = addReference(nodes[id], ref, false);
@@ -171,6 +172,7 @@ int main(int argc, char **argv) {
         for (int i=-2;i<3;i++) {
             if (id+i<titleCount && id+i>=0) printf("%zu: %s\n", id+i, id2title[id+i]);
         }
+        printf("isRedirect: %s\n", id2node[id]->isRedirect ? "true" : "false");
         printf("Links to:\n");
         for (int i=0;i < id2node[id]->forward_length;i++) {
             size_t linkedId = id2node[id]->references[i];
