@@ -2,5 +2,4 @@
 *.bz2
 extractlinks
 parselinks
-tree1
-reader1
+links.txt
