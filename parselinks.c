@@ -149,12 +149,23 @@ struct wikiNode ** addBackwardRefs(struct wikiNode ** nodes, size_t titleCount) 
     }
     return nodes;
 }
+size_t * getNodeOffsets(struct wikiNode ** nodes, size_t titleCount) {
+    size_t offset = 0;
+    size_t * offsets = malloc(sizeof(size_t)*titleCount);
+    for (size_t i=0;i<titleCount;i++) {
+        offsets[i] = offset;
+        offset += sizeof(struct wikiNode)+nodes[i]->forward_length+nodes[i]->backward_length;
+    }
+    fprintf(stderr, "Total node size: %zu\n", offset);
+    return offsets;
+}
 
 int main(int argc, char **argv) {
     FILE * in = NULL;
     char ** id2title;
     size_t titleCount;
     struct wikiNode ** id2node;
+    size_t * id2nodeOffset;
     char search[256];
     if (argc<2) {
         fprintf(stderr, "Usage: %s <file>\n", argv[0]);
@@ -180,7 +191,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Applied redirects\n");
     id2node = addBackwardRefs(id2node, titleCount);
     fprintf(stderr, "Added backward references\n");
-
+    id2nodeOffset = getNodeOffsets(id2node, titleCount);
     while (fgets(search, sizeof(search), stdin)) {
         size_t id;
         search[strlen(search)-1] = '\0'; // remove last character
@@ -192,7 +203,7 @@ int main(int argc, char **argv) {
             printf("Could not find '%s'\n", search);
             continue;
         }
-        printf("Id: %zu\nNearby pages:\n", id);
+        printf("Id: %zu\nOffset:%zu\nNearby pages:\n", id, id2nodeOffset[id]);
         for (int i=-2;i<3;i++) {
             if (id+i<titleCount && id+i>=0) printf("%zu: %s\n", id+i, id2title[id+i]);
         }
