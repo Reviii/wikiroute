@@ -118,6 +118,27 @@ struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount) {
     }
     return nodes;
 }
+struct wikiNode ** applyRedirects(struct wikiNode ** nodes, size_t titleCount) {
+    size_t * redirects = malloc(titleCount*sizeof(size_t));
+    for (size_t i=0;i<titleCount;i++) {
+        if (nodes[i]->isRedirect) {
+            if (nodes[i]->forward_length!=1) {
+                fprintf(stderr, "Redirecting page with id %zu links to %u other pages, assuming redirect is the first one\n", i, nodes[i]->forward_length);
+            }
+            redirects[i] = nodes[i]->references[0];
+        } else {
+            redirects[i] = i;
+        }
+    }
+    for (size_t i=0;i<titleCount;i++) {
+        struct wikiNode * node = nodes[i];
+        for (size_t j=0;j<node->forward_length;j++) {
+            node->references[j] = redirects[node->references[j]];
+        }
+    }
+    free(redirects);
+    return nodes;
+}
 struct wikiNode ** addBackwardRefs(struct wikiNode ** nodes, size_t titleCount) {
     for (size_t i=0;i<titleCount;i++) {
         struct wikiNode * const from = nodes[i];
@@ -154,6 +175,8 @@ int main(int argc, char **argv) {
     id2node = getNodes(in, id2title, titleCount);
     /*free(id2title[0]);
     free(id2title);*/
+    id2node = applyRedirects(id2node, titleCount);
+    fprintf(stderr, "Applied redirects\n");
     id2node = addBackwardRefs(id2node, titleCount);
     fprintf(stderr, "Created nodes\n");
 
