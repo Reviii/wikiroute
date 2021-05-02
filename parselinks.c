@@ -99,9 +99,9 @@ struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount) {
             *(bufferAdd(&titleBuf, 1)) = uppercaseChar(c);
             if (c=='\0') {
                 size_t ref = title2id(id2title, titleCount, titleBuf.content+1); // titleBuf.content+1, becauce the first char needs to be ignored
-                if (titleBuf.content[0]==uppercaseChar('r')) nodes[id]->isRedirect = true;
                 titleBuf.used = 0;
                 if (ref==-1) continue;
+                if (titleBuf.content[0]==uppercaseChar('r')) nodes[id]->isRedirect = true;
                 nodes[id] = addReference(nodes[id], ref, false);
             }
             if (c=='\n') {
