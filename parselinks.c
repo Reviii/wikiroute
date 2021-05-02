@@ -173,12 +173,13 @@ int main(int argc, char **argv) {
     fprintf(stderr, "%zu pages have been given an unique id\n", titleCount);
 
     id2node = getNodes(in, id2title, titleCount);
+    fprintf(stderr, "Created nodes\n");
     /*free(id2title[0]);
     free(id2title);*/
     id2node = applyRedirects(id2node, titleCount);
     fprintf(stderr, "Applied redirects\n");
     id2node = addBackwardRefs(id2node, titleCount);
-    fprintf(stderr, "Created nodes\n");
+    fprintf(stderr, "Added backward references\n");
 
     while (fgets(search, sizeof(search), stdin)) {
         size_t id;
