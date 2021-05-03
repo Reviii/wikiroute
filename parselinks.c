@@ -159,7 +159,23 @@ size_t * getNodeOffsets(struct wikiNode ** nodes, size_t titleCount) {
     fprintf(stderr, "Total node size: %zu\n", offset);
     return offsets;
 }
-
+struct wikiNode ** replaceIdsWithOffsets(struct wikiNode ** nodes, size_t titleCount, size_t * offsets) {
+    for (size_t i=0;i<titleCount;i++) {
+        struct wikiNode * node = nodes[i];
+        for (size_t j=0;j<node->forward_length+node->backward_length;j++) {
+            node->references[j] = offsets[node->references[j]];
+        }
+    }
+    return nodes;
+}
+void writeNodesToFile(struct wikiNode ** nodes, size_t titleCount, FILE * f) {
+    for (size_t i=0;i<titleCount;i++) {
+        struct wikiNode * node = nodes[i];
+        assert(node->dist_b==0);
+        node->dist_a = 0;
+        fwrite(node, 1, sizeof(*node)+(node->forward_length+node->backward_length)*sizeof(node->references[0]), f);
+    }
+}
 int main(int argc, char **argv) {
     FILE * in = NULL;
     char ** id2title;
@@ -185,14 +201,22 @@ int main(int argc, char **argv) {
 
     id2node = getNodes(in, id2title, titleCount);
     fprintf(stderr, "Created nodes\n");
-    /*free(id2title[0]);
-    free(id2title);*/
+    free(id2title[0]);
+    free(id2title);
+
     id2node = applyRedirects(id2node, titleCount);
     fprintf(stderr, "Applied redirects\n");
+
     id2node = addBackwardRefs(id2node, titleCount);
     fprintf(stderr, "Added backward references\n");
+
     id2nodeOffset = getNodeOffsets(id2node, titleCount);
-    while (fgets(search, sizeof(search), stdin)) {
+    id2node = replaceIdsWithOffsets(id2node, titleCount, id2nodeOffset);
+    fprintf(stderr, "Replaced ids with offsets\n");
+    free(id2nodeOffset);
+
+    writeNodesToFile(id2node, titleCount, stdout);
+    /*while (fgets(search, sizeof(search), stdin)) {
         size_t id;
         search[strlen(search)-1] = '\0'; // remove last character
         for (int i=0;search[i];i++) {
@@ -218,6 +242,6 @@ int main(int argc, char **argv) {
             size_t linkedId = id2node[id]->references[id2node[id]->forward_length+i];
             printf("%zu: %s\n", linkedId, id2title[linkedId]);
         }
-    }
+    }*/
     return 0;
 }
