@@ -6,11 +6,12 @@
 #include "buffer.h"
 #include "nodetypes.h"
 
-char uppercaseChar(char c) {
+static char uppercaseChar(char c) {
     if (c>='a'&&c<='z') return c-32;
     return c;
 }
-char ** getTitleListFromFile(FILE * f, size_t * titleCount) {
+
+static char ** getTitleListFromFile(FILE * f, size_t * titleCount) {
     // everything between newline and \0 is a title
     struct buffer stringBuf = bufferCreate();
     struct buffer offsetBuf = bufferCreate();
@@ -48,7 +49,7 @@ char ** getTitleListFromFile(FILE * f, size_t * titleCount) {
     return res;
 }
 
-size_t title2id(char ** id2title, size_t titleCount, char * title) {
+static size_t title2id(char ** id2title, size_t titleCount, char * title) {
     ssize_t first, last, middle;
     first = 0;
     last = titleCount - 1;
@@ -67,7 +68,8 @@ size_t title2id(char ** id2title, size_t titleCount, char * title) {
     }
     return -1;
 }
-struct wikiNode * addReference(struct wikiNode * node, size_t ref, bool backward) {
+
+static struct wikiNode * addReference(struct wikiNode * node, size_t ref, bool backward) {
     struct wikiNode * res;
     if (!backward) {
         for (int i=0;i<node->forward_length;i++)
@@ -86,7 +88,8 @@ struct wikiNode * addReference(struct wikiNode * node, size_t ref, bool backward
     }
     return res;
 }
-struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount) {
+
+static struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount) {
     int c;
     int id = 0;
     bool inLink = false;
@@ -118,7 +121,8 @@ struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount) {
     }
     return nodes;
 }
-struct wikiNode ** applyRedirects(struct wikiNode ** nodes, size_t titleCount) {
+
+static struct wikiNode ** applyRedirects(struct wikiNode ** nodes, size_t titleCount) {
     size_t * redirects = malloc(titleCount*sizeof(size_t));
     for (size_t i=0;i<titleCount;i++) {
         if (nodes[i]->isRedirect) {
@@ -139,7 +143,8 @@ struct wikiNode ** applyRedirects(struct wikiNode ** nodes, size_t titleCount) {
     free(redirects);
     return nodes;
 }
-struct wikiNode ** addBackwardRefs(struct wikiNode ** nodes, size_t titleCount) {
+
+static struct wikiNode ** addBackwardRefs(struct wikiNode ** nodes, size_t titleCount) {
     for (size_t i=0;i<titleCount;i++) {
         struct wikiNode * const from = nodes[i];
         for (int j=0;j<(from->forward_length);j++) {
@@ -149,7 +154,8 @@ struct wikiNode ** addBackwardRefs(struct wikiNode ** nodes, size_t titleCount) 
     }
     return nodes;
 }
-size_t * getNodeOffsets(struct wikiNode ** nodes, size_t titleCount) {
+
+static size_t * getNodeOffsets(struct wikiNode ** nodes, size_t titleCount) {
     size_t offset = 0;
     size_t * offsets = malloc(sizeof(size_t)*titleCount);
     for (size_t i=0;i<titleCount;i++) {
@@ -159,7 +165,8 @@ size_t * getNodeOffsets(struct wikiNode ** nodes, size_t titleCount) {
     fprintf(stderr, "Total node size: %zu\n", offset);
     return offsets;
 }
-struct wikiNode ** replaceIdsWithOffsets(struct wikiNode ** nodes, size_t titleCount, size_t * offsets) {
+
+static struct wikiNode ** replaceIdsWithOffsets(struct wikiNode ** nodes, size_t titleCount, size_t * offsets) {
     for (size_t i=0;i<titleCount;i++) {
         struct wikiNode * node = nodes[i];
         for (size_t j=0;j<node->forward_length+node->backward_length;j++) {
@@ -168,7 +175,8 @@ struct wikiNode ** replaceIdsWithOffsets(struct wikiNode ** nodes, size_t titleC
     }
     return nodes;
 }
-void writeNodesToFile(struct wikiNode ** nodes, size_t titleCount, FILE * f) {
+
+static void writeNodesToFile(struct wikiNode ** nodes, size_t titleCount, FILE * f) {
     for (size_t i=0;i<titleCount;i++) {
         struct wikiNode * node = nodes[i];
         assert(node->dist_b==0);
@@ -176,6 +184,7 @@ void writeNodesToFile(struct wikiNode ** nodes, size_t titleCount, FILE * f) {
         fwrite(node, 1, sizeof(*node)+(node->forward_length+node->backward_length)*sizeof(node->references[0]), f);
     }
 }
+
 int main(int argc, char **argv) {
     FILE * in = NULL;
     char ** id2title;
