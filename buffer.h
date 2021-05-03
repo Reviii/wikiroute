@@ -7,7 +7,7 @@ struct buffer {
 };
 struct buffer bufferCreate();
 void bufferCompact(struct buffer * buf);
-inline char * bufferAdd(struct buffer * buf, size_t amount) {
+static inline char * bufferAdd(struct buffer * buf, size_t amount) {
     size_t res = buf->used;
     while (buf->used+amount>buf->_size) {
         buf->_size *= 2;
