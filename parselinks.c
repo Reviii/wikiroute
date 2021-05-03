@@ -182,7 +182,7 @@ int main(int argc, char **argv) {
     size_t titleCount;
     struct wikiNode ** id2node;
     size_t * id2nodeOffset;
-    char search[256];
+    //char search[256];
     if (argc<2) {
         fprintf(stderr, "Usage: %s <file>\n", argv[0]);
         return 1;
