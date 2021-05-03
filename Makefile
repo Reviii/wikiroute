@@ -8,6 +8,8 @@ extractlinks: extractlinks.o printlinks.o
 parselinks: parselinks.o buffer.o
 	$(CC) $^ $(CFLAGS) -o $@
 
+%.o: %.c %.h
+	$(CC) -c $< $(CFLAGS) -o $@
 %.o: %.c
 	$(CC) -c $< $(CFLAGS) -o $@
 
