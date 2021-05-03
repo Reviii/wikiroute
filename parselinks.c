@@ -154,7 +154,7 @@ size_t * getNodeOffsets(struct wikiNode ** nodes, size_t titleCount) {
     size_t * offsets = malloc(sizeof(size_t)*titleCount);
     for (size_t i=0;i<titleCount;i++) {
         offsets[i] = offset;
-        offset += sizeof(struct wikiNode)+nodes[i]->forward_length+nodes[i]->backward_length;
+        offset += sizeof(struct wikiNode)+(nodes[i]->forward_length+nodes[i]->backward_length)*sizeof(nodes[i]->references[0]);
     }
     fprintf(stderr, "Total node size: %zu\n", offset);
     return offsets;
