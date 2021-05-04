@@ -1,11 +1,14 @@
 CFLAGS = -O3 -Wall
-ALL = extractlinks parselinks
+ALL = extractlinks parselinks explore
 all: $(ALL)
 
 extractlinks: extractlinks.o printlinks.o
 	$(CC) $^ -lxml2 $(CFLAGS) -o $@
 
 parselinks: parselinks.o buffer.o
+	$(CC) $^ $(CFLAGS) -o $@
+
+explore: explore.o mapfile.o
 	$(CC) $^ $(CFLAGS) -o $@
 
 %.o: %.c %.h

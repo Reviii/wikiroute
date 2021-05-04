@@ -2,5 +2,6 @@
 *.bz2
 extractlinks
 parselinks
+explore
 links.txt
 nodes.bin
