@@ -16,16 +16,22 @@ int main(int argc, char ** argv) {
     printf("Mapped %d bytes\n", nodeDataLength);
     printf("\nFirst node:\n");
     do {
-        struct wikiNode * node = (struct wikiNode *) nodeData + nodeOffset;
+        struct wikiNode * node = (struct wikiNode *) (nodeData + nodeOffset);
+        printf("Offset: %u\n", nodeOffset);
         printf("Length: %u\n", sizeof(*node) + (node->forward_length+node->backward_length)*sizeof(node->references[0]));
-        printf("Links to:\n");
-        for (int i=0;i < node->forward_length;i++) {
-            printf("%u\n", node->references[i]);
+        if (node->forward_length+node->backward_length>100) {
+            printf("Links not shown\n");
+        } else {
+            printf("Links to:\n");
+            for (int i=0;i < node->forward_length;i++) {
+                printf("%u\n", node->references[i]);
+            }
+            printf("\nLinked by:\n");
+            for (int i=0;i < node->backward_length;i++) {
+                printf("%u\n", node->forward_length+node->references[i]);
+            }
         }
-        printf("Linked by:\n");
-        for (int i=0;i < node->backward_length;i++) {
-            printf("%u\n", node->forward_length+node->references[i]);
-        }
+        putchar('\n');
     } while (scanf("%u", &nodeOffset)==1);
     return 0;
 }
