@@ -5,7 +5,7 @@
 #include <sys/stat.h>
 #include "mapfile.h"
 
-void * mapFile(const char * path, int openflags, int mmapprot, int mmapflags, int * length) {
+void * mapFile(const char * path, int openflags, int mmapprot, int mmapflags, size_t * length) {
     int fd;
     struct stat sb;
     void * ptr = NULL;
