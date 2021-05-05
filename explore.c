@@ -7,8 +7,8 @@
 
 int main(int argc, char ** argv) {
     char * nodeData = NULL;
-    int nodeDataLength = 0;
-    int nodeOffset = 0;
+    size_t nodeDataLength = 0;
+    uint32_t nodeOffset = 0;
     if (argc<3) {
         fprintf(stderr, "Usage: %s <node file> <title file>\n", argv[0]);
         return 1;
@@ -24,11 +24,11 @@ int main(int argc, char ** argv) {
             printf("Links not shown\n");
         } else {
             printf("Links to:\n");
-            for (int i=0;i < node->forward_length;i++) {
+            for (size_t i=0;i < node->forward_length;i++) {
                 printf("%u\n", node->references[i]);
             }
             printf("\nLinked by:\n");
-            for (int i=0;i < node->backward_length;i++) {
+            for (size_t i=0;i < node->backward_length;i++) {
                 printf("%u\n", node->forward_length+node->references[i]);
             }
         }
