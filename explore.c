@@ -23,6 +23,7 @@ static uint32_t * getNodeOffsets(char * nodeData, size_t nodeDataLength, size_t 
 int main(int argc, char ** argv) {
     char * nodeData = NULL;
     size_t nodeDataLength = 0;
+    size_t nodeCount = 0;
     uint32_t nodeOffset = 0;
     if (argc<3) {
         fprintf(stderr, "Usage: %s <node file> <title file>\n", argv[0]);
@@ -30,6 +31,8 @@ int main(int argc, char ** argv) {
     }
     nodeData = mapFile(argv[1], O_RDONLY, PROT_READ, MAP_PRIVATE, &nodeDataLength);
     printf("Mapped %d bytes\n", nodeDataLength);
+    free(getNodeOffsets(nodeData, nodeDataLength, &nodeCount));
+    printf("Calculated offsets for %zu nodes\n", nodeCount);
     printf("\nFirst node:\n");
     do {
         struct wikiNode * node = (struct wikiNode *) (nodeData + nodeOffset);
