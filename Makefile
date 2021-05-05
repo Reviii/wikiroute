@@ -1,11 +1,14 @@
 CFLAGS = -O3 -Wall
-ALL = extractlinks parselinks explore
+ALL = extractlinks parselinks extracttitles explore
 all: $(ALL)
 
 extractlinks: extractlinks.o printlinks.o
 	$(CC) $^ -lxml2 $(CFLAGS) -o $@
 
 parselinks: parselinks.o buffer.o
+	$(CC) $^ $(CFLAGS) -o $@
+
+extracttitles: extracttitles.c
 	$(CC) $^ $(CFLAGS) -o $@
 
 explore: explore.o mapfile.o
@@ -21,6 +24,9 @@ links.txt: wikidump.bz2 extractlinks
 
 nodes.bin: links.txt parselinks
 	./parselinks links.txt > nodes.bin
+
+titles.txt:
+	./extracttitles links.txt > titles.txt
 
 clean:
 	rm -f $(ALL) *.o

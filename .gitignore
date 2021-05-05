@@ -1,7 +1,11 @@
 *.o
 *.bz2
+
+explore
+extracttitles
 extractlinks
 parselinks
-explore
+
 links.txt
 nodes.bin
+titles.txt
