@@ -1,9 +1,24 @@
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/mman.h>
+#include "buffer.h"
 #include "mapfile.h"
 #include "nodetypes.h"
+
+static uint32_t * getNodeOffsets(char * nodeData, size_t nodeDataLength, size_t * nodeCount) {
+    uint32_t offset = 0;
+    struct buffer offsetBuf = bufferCreate();
+    *nodeCount = 0;
+    while (offset<nodeDataLength) {
+        struct wikiNode * node = (struct wikiNode *) (nodeData + offset);
+        *(uint32_t *)bufferAdd(&offsetBuf, sizeof(uint32_t)) = offset;
+        (*nodeCount)++;
+        offset += sizeof(*node) + (node->forward_length+node->backward_length)*sizeof(node->references[0]);
+    }
+    return (uint32_t *) offsetBuf.content;
+}
 
 int main(int argc, char ** argv) {
     char * nodeData = NULL;

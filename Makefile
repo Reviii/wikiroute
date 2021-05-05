@@ -11,7 +11,7 @@ parselinks: parselinks.o buffer.o
 extracttitles: extracttitles.c
 	$(CC) $^ $(CFLAGS) -o $@
 
-explore: explore.o mapfile.o
+explore: explore.o buffer.o mapfile.o
 	$(CC) $^ $(CFLAGS) -o $@
 
 %.o: %.c %.h
