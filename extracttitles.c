@@ -14,13 +14,13 @@ int main(int argc, char ** argv) {
         perror("Failed to open file");
         return 1;
     }
-    while ((c = fgetc(f)) != EOF) {
+    while ((c = getc_unlocked(f)) != EOF) {
         if (inTitle) {
             if (c) {
-                putchar(c);
+                putchar_unlocked(c);
             } else {
                 inTitle = false;
-                putchar('\n');
+                putchar_unlocked('\n');
             }
         } else {
             if (c=='\n')
