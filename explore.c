@@ -41,12 +41,37 @@ static size_t * getTitleOffsets(FILE * f, size_t * titleCount) {
     return (size_t *) offsetBuf.content;
 }
 
+char * nodeOffsetToTitle(FILE * titles, uint32_t * nodeOffsets, size_t * titleOffsets, size_t nodeCount, uint32_t nodeOffset) {
+    ssize_t first, middle, last;
+    first = 0;
+    last = nodeCount - 1;
+    middle = (first+last)/2;
+    while (first<=last) {
+        if (nodeOffset>nodeOffsets[middle]) {
+            first = middle+1;
+        } else if (nodeOffset==nodeOffsets[middle]) {
+            char * title = malloc(256);
+            size_t titleLength = 256;
+            fseek(titles, titleOffsets[middle], SEEK_SET);
+            getline(&title, &titleLength, titles);
+            title[strlen(title)-1] = '\0';
+            return title;
+        } else {
+            last = middle-1;
+        }
+        middle = (first+last)/2;
+    }
+    return NULL;
+}
+
 int main(int argc, char ** argv) {
     char * nodeData = NULL;
     size_t nodeDataLength = 0;
     size_t nodeCount = 0;
     FILE * titleFile = NULL;
     size_t titleCount = 0;
+    uint32_t * nodeOffsets = NULL;
+    size_t * titleOffsets = NULL;
     uint32_t nodeOffset = 0;
 
     if (argc<3) {
@@ -63,11 +88,11 @@ int main(int argc, char ** argv) {
         return -1;
     }
 
-    free(getNodeOffsets(nodeData, nodeDataLength, &nodeCount));
+    nodeOffsets = getNodeOffsets(nodeData, nodeDataLength, &nodeCount);
     printf("Calculated offsets for %zu nodes\n", nodeCount);
-
-    free(getTitleOffsets(titleFile, &titleCount));
+    titleOffsets = getTitleOffsets(titleFile, &titleCount);
     printf("Calculated offsets for %zu titles\n", titleCount);
+    assert(titleCount == nodeCount);
 
     printf("\nFirst node:\n");
     do {
@@ -79,11 +104,17 @@ int main(int argc, char ** argv) {
         } else {
             printf("Links to:\n");
             for (size_t i=0;i < node->forward_length;i++) {
-                printf("%u\n", node->references[i]);
+                uint32_t offset = node->references[i];
+                char * title = nodeOffsetToTitle(titleFile, nodeOffsets, titleOffsets, nodeCount, offset);
+                printf("%u %s\n", offset, title);
+                if (title) free(title);
             }
             printf("\nLinked by:\n");
             for (size_t i=0;i < node->backward_length;i++) {
-                printf("%u\n", node->forward_length+node->references[i]);
+                uint32_t offset = node->references[i+node->forward_length];
+                char * title = nodeOffsetToTitle(titleFile, nodeOffsets, titleOffsets, nodeCount, offset);
+                printf("%u %s\n", offset, title);
+                if (title) free(title);
             }
         }
         putchar('\n');
