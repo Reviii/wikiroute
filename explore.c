@@ -22,7 +22,7 @@ static uint32_t * getNodeOffsets(char * nodeData, size_t nodeDataLength, size_t 
 
 static int skipLine(FILE * f) {
     int c;
-    while ((c = getc(f)) != '\n') {
+    while ((c = getc_unlocked(f)) != '\n') {
         if (c==EOF) return EOF;
     }
     return 0;

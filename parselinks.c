@@ -21,7 +21,7 @@ static char ** getTitleListFromFile(FILE * f, size_t * titleCount) {
     char ** res = NULL;
 
     *(size_t *)bufferAdd(&offsetBuf, sizeof(size_t)) = stringBuf.used;
-    while ((c=getc(f))!=EOF) {
+    while ((c=getc_unlocked(f))!=EOF) {
         if (inTitle) {
             *bufferAdd(&stringBuf, sizeof(char)) = uppercaseChar(c);
             if (!c) {
@@ -97,7 +97,7 @@ static struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount
     struct wikiNode ** nodes = malloc(titleCount*sizeof(struct wikiNode *));
     rewind(f);
     nodes[0] = calloc(sizeof(struct wikiNode), 1);
-    while ((c=getc(f))!=EOF) {
+    while ((c=getc_unlocked(f))!=EOF) {
         if (inLink) {
             *(bufferAdd(&titleBuf, 1)) = uppercaseChar(c);
             if (c=='\0') {
