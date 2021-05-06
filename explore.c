@@ -20,19 +20,55 @@ static uint32_t * getNodeOffsets(char * nodeData, size_t nodeDataLength, size_t 
     return (uint32_t *) offsetBuf.content;
 }
 
+static int skipLine(FILE * f) {
+    int c;
+    while ((c = getc(f)) != '\n') {
+        if (c==EOF) return EOF;
+    }
+    return 0;
+}
+
+static size_t * getTitleOffsets(FILE * f, size_t * titleCount) {
+    size_t offset = 0;
+    struct buffer offsetBuf = bufferCreate();
+    *titleCount = 0;
+    while (skipLine(f) != EOF) {
+        *(size_t *)bufferAdd(&offsetBuf, sizeof(size_t)) = offset;
+        (*titleCount)++;
+        offset = ftello(f);
+        assert(offset!=-1);
+    }
+    return (size_t *) offsetBuf.content;
+}
+
 int main(int argc, char ** argv) {
     char * nodeData = NULL;
     size_t nodeDataLength = 0;
     size_t nodeCount = 0;
+    FILE * titleFile = NULL;
+    size_t titleCount = 0;
     uint32_t nodeOffset = 0;
+
     if (argc<3) {
         fprintf(stderr, "Usage: %s <node file> <title file>\n", argv[0]);
         return 1;
     }
+
     nodeData = mapFile(argv[1], O_RDONLY, PROT_READ, MAP_PRIVATE, &nodeDataLength);
     printf("Mapped %d bytes\n", nodeDataLength);
+
+    titleFile = fopen(argv[2], "r");
+    if (!titleFile) {
+        perror("Failed to open title file");
+        return -1;
+    }
+
     free(getNodeOffsets(nodeData, nodeDataLength, &nodeCount));
     printf("Calculated offsets for %zu nodes\n", nodeCount);
+
+    free(getTitleOffsets(titleFile, &titleCount));
+    printf("Calculated offsets for %zu titles\n", titleCount);
+
     printf("\nFirst node:\n");
     do {
         struct wikiNode * node = (struct wikiNode *) (nodeData + nodeOffset);
