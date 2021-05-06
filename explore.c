@@ -80,7 +80,11 @@ int main(int argc, char ** argv) {
     }
 
     nodeData = mapFile(argv[1], O_RDONLY, PROT_READ, MAP_PRIVATE, &nodeDataLength);
-    printf("Mapped %d bytes\n", nodeDataLength);
+    if (!nodeData) {
+        fprintf(stderr, "Failed to mmap node file\n");
+        return -1;
+    }
+    printf("Mmapped %d bytes\n", nodeDataLength);
 
     titleFile = fopen(argv[2], "r");
     if (!titleFile) {
