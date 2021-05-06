@@ -39,7 +39,7 @@ static char ** getTitleListFromFile(FILE * f, size_t * titleCount) {
 
     offsets = (size_t *)offsetBuf.content;
     res = malloc(offsetBuf.used/sizeof(offsets[0])*sizeof(char *));
-    for (int i=0;i<offsetBuf.used/sizeof(offsets[0])-1;i++) {
+    for (size_t i=0;i<offsetBuf.used/sizeof(offsets[0])-1;i++) {
         res[i] = stringBuf.content + offsets[i];
     }
     res[offsetBuf.used/sizeof(offsets[0])-1] = NULL;
