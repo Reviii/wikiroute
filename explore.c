@@ -50,6 +50,7 @@ static char * getTitle(FILE * titles, size_t * titleOffsets, size_t id) {
     title[strlen(title)-1] = '\0';
     return title;
 }
+
 static char * nodeOffsetToTitle(FILE * titles, uint32_t * nodeOffsets, size_t * titleOffsets, size_t nodeCount, uint32_t nodeOffset) {
     ssize_t first, middle, last;
     first = 0;
@@ -132,7 +133,7 @@ int main(int argc, char ** argv) {
         printf("Offset: %u\n", nodeOffset);
         printf("Length: %u\n", sizeof(*node) + (node->forward_length+node->backward_length)*sizeof(node->references[0]));
         title = nodeOffsetToTitle(titleFile, nodeOffsets, titleOffsets, nodeCount, nodeOffset);
-        printf("Title: '%s'\n", title);
+        printf("Title: %s\n", title);
         if (node->forward_length+node->backward_length>100) {
             printf("Links not shown\n");
         } else {
