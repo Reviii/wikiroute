@@ -139,7 +139,7 @@ int main(int argc, char ** argv) {
         struct wikiNode * node;
         char * title;
 
-        if (!fgets(search, 256, stdin)) continue;
+        if (!fgets(search, 256, stdin)) break;
         search[strlen(search)-1] = '\0';
         nodeOffset = titleToNodeOffset(titleFile, nodeOffsets, titleOffsets, nodeCount, search);
         if (nodeOffset==(size_t)-1) {
