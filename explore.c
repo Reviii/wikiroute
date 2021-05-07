@@ -152,7 +152,7 @@ int main(int argc, char ** argv) {
         printf("Length: %u\n", sizeof(*node) + (node->forward_length+node->backward_length)*sizeof(node->references[0]));
         title = nodeOffsetToTitle(titleFile, nodeOffsets, titleOffsets, nodeCount, nodeOffset);
         printf("Title: %s\n", title);
-        if (node->forward_length+node->backward_length>100) {
+        if (node->forward_length+node->backward_length>500) {
             printf("Links not shown\n");
         } else {
             printf("Links to:\n");
