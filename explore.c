@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/mman.h>
 #include "buffer.h"
 #include "mapfile.h"
@@ -41,7 +42,15 @@ static size_t * getTitleOffsets(FILE * f, size_t * titleCount) {
     return (size_t *) offsetBuf.content;
 }
 
-char * nodeOffsetToTitle(FILE * titles, uint32_t * nodeOffsets, size_t * titleOffsets, size_t nodeCount, uint32_t nodeOffset) {
+static char * getTitle(FILE * titles, size_t * titleOffsets, size_t id) {
+    char * title = malloc(256);
+    size_t titleLength = 256;
+    fseek(titles, titleOffsets[id], SEEK_SET);
+    getline(&title, &titleLength, titles);
+    title[strlen(title)-1] = '\0';
+    return title;
+}
+static char * nodeOffsetToTitle(FILE * titles, uint32_t * nodeOffsets, size_t * titleOffsets, size_t nodeCount, uint32_t nodeOffset) {
     ssize_t first, middle, last;
     first = 0;
     last = nodeCount - 1;
@@ -50,12 +59,7 @@ char * nodeOffsetToTitle(FILE * titles, uint32_t * nodeOffsets, size_t * titleOf
         if (nodeOffset>nodeOffsets[middle]) {
             first = middle+1;
         } else if (nodeOffset==nodeOffsets[middle]) {
-            char * title = malloc(256);
-            size_t titleLength = 256;
-            fseek(titles, titleOffsets[middle], SEEK_SET);
-            getline(&title, &titleLength, titles);
-            title[strlen(title)-1] = '\0';
-            return title;
+            return getTitle(titles, titleOffsets, middle);
         } else {
             last = middle-1;
         }
