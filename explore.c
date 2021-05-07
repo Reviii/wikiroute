@@ -134,11 +134,20 @@ int main(int argc, char ** argv) {
     printf("Calculated offsets for %zu titles\n", titleCount);
     assert(titleCount == nodeCount);
 
-    printf("\nFirst node:\n");
-    do {
+    while (true) {
         char search[256];
-        struct wikiNode * node = (struct wikiNode *) (nodeData + nodeOffset);
+        struct wikiNode * node;
         char * title;
+
+        if (!fgets(search, 256, stdin)) continue;
+        search[strlen(search)-1] = '\0';
+        nodeOffset = titleToNodeOffset(titleFile, nodeOffsets, titleOffsets, nodeCount, search);
+        if (nodeOffset==(size_t)-1) {
+            printf("Could not find %s\n", search);
+            continue;
+        }
+
+        node = (struct wikiNode *) (nodeData + nodeOffset);
         printf("Offset: %u\n", nodeOffset);
         printf("Length: %u\n", sizeof(*node) + (node->forward_length+node->backward_length)*sizeof(node->references[0]));
         title = nodeOffsetToTitle(titleFile, nodeOffsets, titleOffsets, nodeCount, nodeOffset);
@@ -162,13 +171,6 @@ int main(int argc, char ** argv) {
             }
         }
         putchar('\n');
-        if (!fgets(search, 256, stdin)) continue;
-        search[strlen(search)-1] = '\0';
-        nodeOffset = titleToNodeOffset(titleFile, nodeOffsets, titleOffsets, nodeCount, search);
-        if (nodeOffset==(size_t)-1) {
-            printf("Could not find '%s'\n", search);
-            continue;
-        }
-    } while (true);
+    }
     return 0;
 }
