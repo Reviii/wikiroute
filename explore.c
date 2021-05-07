@@ -68,6 +68,28 @@ static char * nodeOffsetToTitle(FILE * titles, uint32_t * nodeOffsets, size_t * 
     return NULL;
 }
 
+static uint32_t titleToNodeOffset(FILE * titles, uint32_t * nodeOffsets, size_t * titleOffsets, size_t nodeCount, char * title) {
+    ssize_t first, middle, last;
+    first = 0;
+    last = nodeCount - 1;
+    middle = (first+last)/2;
+    while (first<=last) {
+        int cmp;
+        char * cmpTitle = getTitle(titles, titleOffsets, middle);
+        assert(cmpTitle);
+        cmp = strcmp(title, cmpTitle);
+        free(cmpTitle);
+        if (cmp>0) {
+            first = middle+1;
+        } else if (cmp==0) {
+            return nodeOffsets[middle];
+        } else {
+            last = middle-1;
+        }
+        middle = (first+last)/2;
+    }
+    return -1;
+}
 int main(int argc, char ** argv) {
     char * nodeData = NULL;
     size_t nodeDataLength = 0;
@@ -104,9 +126,13 @@ int main(int argc, char ** argv) {
 
     printf("\nFirst node:\n");
     do {
+        char search[256];
         struct wikiNode * node = (struct wikiNode *) (nodeData + nodeOffset);
+        char * title;
         printf("Offset: %u\n", nodeOffset);
         printf("Length: %u\n", sizeof(*node) + (node->forward_length+node->backward_length)*sizeof(node->references[0]));
+        title = nodeOffsetToTitle(titleFile, nodeOffsets, titleOffsets, nodeCount, nodeOffset);
+        printf("Title: '%s'\n", title);
         if (node->forward_length+node->backward_length>100) {
             printf("Links not shown\n");
         } else {
@@ -126,6 +152,13 @@ int main(int argc, char ** argv) {
             }
         }
         putchar('\n');
-    } while (scanf("%u", &nodeOffset)==1);
+        if (!fgets(search, 256, stdin)) continue;
+        search[strlen(search)-1] = '\0';
+        nodeOffset = titleToNodeOffset(titleFile, nodeOffsets, titleOffsets, nodeCount, search);
+        if (nodeOffset==(size_t)-1) {
+            printf("Could not find '%s'\n", search);
+            continue;
+        }
+    } while (true);
     return 0;
 }
