@@ -104,7 +104,7 @@ static struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount
                 size_t ref = title2id(id2title, titleCount, titleBuf.content+1); // titleBuf.content+1, becauce the first char needs to be ignored
                 titleBuf.used = 0;
                 if (ref==-1) continue;
-                if (titleBuf.content[0]==uppercaseChar('r')) nodes[id]->isRedirect = true;
+                if (titleBuf.content[0]==uppercaseChar('r')&&!nodes[id]->redirect) nodes[id]->redirect = nodes[id]->forward_length+1;
                 nodes[id] = addReference(nodes[id], ref, false);
             }
             if (c=='\n') {
@@ -125,11 +125,11 @@ static struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount
 static struct wikiNode ** applyRedirects(struct wikiNode ** nodes, size_t titleCount) {
     size_t * redirects = malloc(titleCount*sizeof(size_t));
     for (size_t i=0;i<titleCount;i++) {
-        if (nodes[i]->isRedirect) {
+        if (nodes[i]->redirect) {
             if (nodes[i]->forward_length!=1) {
-                fprintf(stderr, "Redirecting page with id %zu links to %u other pages, assuming redirect is the first one\n", i, nodes[i]->forward_length);
+                fprintf(stderr, "Redirecting page with id %zu links to %u other pages, redirect has index %u\n", i, nodes[i]->forward_length, nodes[i]->redirect-1);
             }
-            redirects[i] = nodes[i]->references[0];
+            redirects[i] = nodes[i]->references[nodes[i]->redirect-1];
         } else {
             redirects[i] = i;
         }
@@ -179,8 +179,8 @@ static struct wikiNode ** replaceIdsWithOffsets(struct wikiNode ** nodes, size_t
 static void writeNodesToFile(struct wikiNode ** nodes, size_t titleCount, FILE * f) {
     for (size_t i=0;i<titleCount;i++) {
         struct wikiNode * node = nodes[i];
-        assert(node->dist_b==0);
         node->dist_a = 0;
+        node->dist_b = 0;
         fwrite(node, 1, sizeof(*node)+(node->forward_length+node->backward_length)*sizeof(node->references[0]), f);
     }
 }
