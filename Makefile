@@ -1,5 +1,5 @@
 CFLAGS = -O3 -Wall
-ALL = extractlinks parselinks extracttitles explore
+ALL = extractlinks parselinks extracttitles explore route
 all: $(ALL)
 
 extractlinks: extractlinks.o printlinks.o
@@ -12,6 +12,9 @@ extracttitles: extracttitles.c
 	$(CC) $^ $(CFLAGS) -o $@
 
 explore: explore.o buffer.o mapfile.o
+	$(CC) $^ $(CFLAGS) -o $@
+
+route: route.o buffer.o mapfile.o
 	$(CC) $^ $(CFLAGS) -o $@
 
 %.o: %.c %.h
