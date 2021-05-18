@@ -101,6 +101,14 @@ static uint32_t titleToNodeOffset(FILE * titles, uint32_t * nodeOffsets, size_t 
     return -1;
 }
 
+static void cleanNodes(char * nodeData, uint32_t * nodeOffsets, size_t nodeCount) {
+    for (size_t i=0;i<nodeCount;i++) {
+        struct wikiNode * node = (struct wikiNode *) (nodeData + nodeOffsets[i]);
+        node->dist_a = 0;
+        node->dist_b = 0;
+    }
+}
+
 static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, size_t * titleOffsets, size_t nodeCount) {
     struct buffer A = bufferCreate();
     struct buffer B = bufferCreate();
@@ -211,7 +219,11 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
                 }
                 putchar('\n');
             }
-            return;
+            A.used=0;
+            B.used=0;
+            New.used=0;
+            cleanNodes(nodeData, nodeOffsets, nodeCount);
+            break;
         default:
             fprintf(stderr, "Invalid input\n");
             skipLine(stdin);
