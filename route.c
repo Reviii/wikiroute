@@ -219,6 +219,9 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
                 }
                 putchar('\n');
             }
+            if (!match) {
+                printf("No route found\n");
+            }
             A.used=0;
             B.used=0;
             New.used=0;
