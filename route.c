@@ -165,7 +165,9 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
                             continue;
                         }
                         if (node->dist_b) {
-                            printf("Match @ %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, content[i]));
+                            char * title = nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, content[i]);
+                            printf("Match @ %s\n", title);
+                            free(title);
                             match = true;
                         }
                         node->dist_a = distA;
@@ -190,7 +192,9 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
                             continue;
                         }
                         if (node->dist_a) {
-                            printf("Match @ %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, content[i]));
+                            char * title = nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, content[i]);
+                            printf("Match @ %s\n", title);
+                            free(title);
                             match = true;
                         }
                         node->dist_b = distB;
