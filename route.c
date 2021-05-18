@@ -162,7 +162,6 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
                     for (size_t i=0;i<A.used/sizeof(size_t);i++) {
                         struct wikiNode * node = (struct wikiNode *) (nodeData + content[i]);
                         if (node->dist_a) {
-                            putchar('.');
                             continue;
                         }
                         if (node->dist_b) {
@@ -188,7 +187,6 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
                     for (size_t i=0;i<B.used/sizeof(size_t);i++) {
                         struct wikiNode * node = (struct wikiNode *) (nodeData + content[i]);
                         if (node->dist_b) {
-                            putchar(',');
                             continue;
                         }
                         if (node->dist_a) {
