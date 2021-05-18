@@ -4,3 +4,6 @@ char * getTitle(FILE * titles, size_t * titleOffsets, size_t id);
 char * nodeOffsetToTitle(FILE * titles, uint32_t * nodeOffsets, size_t * titleOffsets, size_t nodeCount, uint32_t nodeOffset);
 void normalizeTitle(char * title);
 uint32_t titleToNodeOffset(FILE * titles, uint32_t * nodeOffsets, size_t * titleOffsets, size_t nodeCount, char * title);
+static inline struct wikiNode * getNode(char * nodeData, uint32_t offset) {
+    return (struct wikiNode *) (nodeData + offset);
+}

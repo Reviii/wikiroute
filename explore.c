@@ -56,7 +56,7 @@ int main(int argc, char ** argv) {
             continue;
         }
 
-        node = (struct wikiNode *) (nodeData + nodeOffset);
+        node = getNode(nodeData, nodeOffset);
         printf("Offset: %u\n", nodeOffset);
         printf("Length: %u\n", sizeof(*node) + (node->forward_length+node->backward_length)*sizeof(node->references[0]));
         title = nodeOffsetToTitle(titleFile, nodeOffsets, titleOffsets, nodeCount, nodeOffset);

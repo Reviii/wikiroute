@@ -11,7 +11,7 @@
 
 static void cleanNodes(char * nodeData, uint32_t * nodeOffsets, size_t nodeCount) {
     for (size_t i=0;i<nodeCount;i++) {
-        struct wikiNode * node = (struct wikiNode *) (nodeData + nodeOffsets[i]);
+        struct wikiNode * node = getNode(nodeData, nodeOffsets[i]);
         node->dist_a = 0;
         node->dist_b = 0;
     }
@@ -84,7 +84,7 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
                     printf("Checking A\n");
                     if (!A.used) break;
                     for (size_t i=0;i<A.used/sizeof(size_t);i++) {
-                        struct wikiNode * node = (struct wikiNode *) (nodeData + content[i]);
+                        struct wikiNode * node = getNode(nodeData, content[i]);
                         if (node->dist_a) {
                             continue;
                         }
@@ -111,7 +111,7 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
                     printf("Checking B\n");
                     if (!B.used) break;
                     for (size_t i=0;i<B.used/sizeof(size_t);i++) {
-                        struct wikiNode * node = (struct wikiNode *) (nodeData + content[i]);
+                        struct wikiNode * node = getNode(nodeData, content[i]);
                         if (node->dist_b) {
                             continue;
                         }
