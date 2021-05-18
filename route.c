@@ -164,7 +164,6 @@ int main(int argc, char ** argv) {
     size_t titleCount = 0;
     uint32_t * nodeOffsets = NULL;
     size_t * titleOffsets = NULL;
-    uint32_t nodeOffset = 0;
 
     if (argc<3) {
         fprintf(stderr, "Usage: %s <node file> <title file>\n", argv[0]);
