@@ -29,7 +29,7 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
     struct buffer A = bufferCreate();
     struct buffer B = bufferCreate();
     struct buffer New = bufferCreate();
-    // somehow fill the buffers A and B with nodeOffset
+
     while (true) {
         char * str = NULL;
         size_t len = 0;
@@ -151,12 +151,6 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
             break;
         }
     }
-    // loop
-        // pick one A/B with the smallest size
-        // iterate over refernced nodes
-            // mark dist
-            // add references to new buffers
-        // old = new
 }
 int main(int argc, char ** argv) {
     char * nodeData = NULL;
