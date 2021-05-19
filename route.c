@@ -95,6 +95,7 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
                             match = true;
                         }
                         node->dist_a = distA;
+                        if (match) continue;
                         for (size_t j=0;j<node->forward_length;j++) {
                             *(size_t *)bufferAdd(&New, sizeof(size_t)) = node->references[j];
                         }
@@ -122,6 +123,7 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
                             match = true;
                         }
                         node->dist_b = distB;
+                        if (match) continue;
                         for (size_t j=0;j<node->backward_length;j++) {
                             *(size_t *)bufferAdd(&New, sizeof(size_t)) = node->references[j+node->forward_length];
                         }
