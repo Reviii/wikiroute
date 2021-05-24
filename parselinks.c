@@ -1,10 +1,26 @@
 #include <assert.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include "buffer.h"
 #include "nodetypes.h"
+
+static FILE * openFileAndCheck(char * path, char * options, char * name, FILE * std) {
+    FILE * f = NULL;
+    if (strcmp(path, "-")==0) {
+        f = std;
+    } else {
+        f = fopen(path, options);
+    }
+    if (!f) {
+        fprintf(stderr, "Failed to open %s file: %s\n", name, strerror(errno));
+        errno = 0;
+        exit(1);
+    }
+    return f;
+}
 
 static char uppercaseChar(char c) {
     if (c>='a'&&c<='z') return c-32;
@@ -176,6 +192,25 @@ static struct wikiNode ** replaceIdsWithOffsets(struct wikiNode ** nodes, size_t
     return nodes;
 }
 
+static void writeTitlesToFile(FILE * in, FILE * out) {
+    int c;
+    bool inTitle = true;
+    rewind(in);
+    while ((c = getc_unlocked(in)) != EOF) {
+        if (inTitle) {
+            if (c) {
+                putc_unlocked(c, out);
+            } else {
+                inTitle = false;
+                putc_unlocked('\n', out);
+            }
+        } else {
+            if (c=='\n')
+                inTitle = true;
+        }
+    }
+}
+
 static void writeNodesToFile(struct wikiNode ** nodes, size_t titleCount, FILE * f) {
     for (size_t i=0;i<titleCount;i++) {
         struct wikiNode * node = nodes[i];
@@ -186,25 +221,22 @@ static void writeNodesToFile(struct wikiNode ** nodes, size_t titleCount, FILE *
 }
 
 int main(int argc, char **argv) {
-    FILE * in = NULL;
+    FILE * in       = NULL;
+    FILE * nodeOut  = NULL;
+    FILE * titleOut = NULL;
     char ** id2title;
     size_t titleCount;
     struct wikiNode ** id2node;
     size_t * id2nodeOffset;
     //char search[256];
-    if (argc<2) {
-        fprintf(stderr, "Usage: %s <file>\n", argv[0]);
+    if (argc<4) {
+        fprintf(stderr, "Usage: %s <input file> <node output file> <title output file>\n", argv[0]);
         return 1;
     }
-    if (strcmp(argv[1], "-")==0) {
-        in = stdin;
-    } else {
-        in = fopen(argv[1], "r");
-    }
-    if (!in) {
-        fprintf(stderr, "Failed to open file\n");
-        return 1;
-    }
+    in       = openFileAndCheck(argv[1], "r", "input",        stdin );
+    nodeOut  = openFileAndCheck(argv[2], "w", "node output",  stdout);
+    titleOut = openFileAndCheck(argv[3], "w", "title output", stdout);
+
     id2title = getTitleListFromFile(in, &titleCount);
     fprintf(stderr, "%zu pages have been given an unique id\n", titleCount);
 
@@ -224,33 +256,8 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Replaced ids with offsets\n");
     free(id2nodeOffset);
 
-    writeNodesToFile(id2node, titleCount, stdout);
-    /*while (fgets(search, sizeof(search), stdin)) {
-        size_t id;
-        search[strlen(search)-1] = '\0'; // remove last character
-        for (int i=0;search[i];i++) {
-            search[i] = uppercaseChar(search[i]);
-        }
-        id = title2id(id2title, titleCount, search);
-        if (id==-1) {
-            printf("Could not find '%s'\n", search);
-            continue;
-        }
-        printf("Id: %zu\nOffset:%zu\nNearby pages:\n", id, id2nodeOffset[id]);
-        for (int i=-2;i<3;i++) {
-            if (id+i<titleCount && id+i>=0) printf("%zu: %s\n", id+i, id2title[id+i]);
-        }
-        printf("isRedirect: %s\n", id2node[id]->isRedirect ? "true" : "false");
-        printf("Links to:\n");
-        for (int i=0;i < id2node[id]->forward_length;i++) {
-            size_t linkedId = id2node[id]->references[i];
-            printf("%zu: %s\n", linkedId, id2title[linkedId]);
-        }
-        printf("Linked by:\n");
-        for (int i=0;i < id2node[id]->backward_length;i++) {
-            size_t linkedId = id2node[id]->references[id2node[id]->forward_length+i];
-            printf("%zu: %s\n", linkedId, id2title[linkedId]);
-        }
-    }*/
+    writeNodesToFile(id2node, titleCount, nodeOut);
+    writeTitlesToFile(in, titleOut);
+
     return 0;
 }
