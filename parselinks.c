@@ -171,11 +171,53 @@ static struct wikiNode ** addBackwardRefs(struct wikiNode ** nodes, size_t title
     return nodes;
 }
 
+static size_t removeUselessRedirectionPages(struct wikiNode ** nodes, size_t titleCount) {
+    size_t removed = 0;
+    for (size_t i=0;i<titleCount;i++) {
+        if (nodes[i]->redirect&&nodes[i]->backward_length==0&&nodes[i]->forward_length<2) {
+            free(nodes[i]);
+            nodes[i] = NULL;
+            removed++;
+        }
+    }
+    return removed;
+}
+
+static size_t removeSomeBackwardRefs(struct wikiNode ** nodes, size_t titleCount) {
+    // remove backward refs to unreachable nodes
+    const uint32_t unreachable = -1;
+    size_t removed = 0;
+    for (size_t i=0;i<titleCount;i++) {
+        struct wikiNode * node = nodes[i];
+        if (!node) continue;
+        for (size_t j=0;j<node->backward_length;j++) {
+            struct wikiNode * target = nodes[node->references[node->forward_length+j]];
+            if (!target||target->backward_length==0) {
+                node->references[node->forward_length+j] = unreachable;
+                removed++;
+            }
+        }
+    }
+    for (size_t i=0;i<titleCount;i++) {
+        struct wikiNode * node = nodes[i];
+        size_t write = 0;
+        if (!node) continue;
+        for (size_t read=0;read<node->backward_length;read++) {
+            if (node->references[read+node->forward_length]!=unreachable) {
+                node->references[write+node->forward_length] = node->references[read+node->forward_length];
+                write++;
+            }
+        }
+        node->backward_length = write;
+    }
+    return removed;
+}
 static size_t * getNodeOffsets(struct wikiNode ** nodes, size_t titleCount) {
     size_t offset = 0;
     size_t * offsets = malloc(sizeof(size_t)*titleCount);
     for (size_t i=0;i<titleCount;i++) {
         offsets[i] = offset;
+        if (!nodes[i]) continue;
         offset += sizeof(struct wikiNode)+(nodes[i]->forward_length+nodes[i]->backward_length)*sizeof(nodes[i]->references[0]);
     }
     fprintf(stderr, "Total node size: %zu\n", offset);
@@ -185,6 +227,7 @@ static size_t * getNodeOffsets(struct wikiNode ** nodes, size_t titleCount) {
 static struct wikiNode ** replaceIdsWithOffsets(struct wikiNode ** nodes, size_t titleCount, size_t * offsets) {
     for (size_t i=0;i<titleCount;i++) {
         struct wikiNode * node = nodes[i];
+        if (!node) continue;
         for (size_t j=0;j<node->forward_length+node->backward_length;j++) {
             node->references[j] = offsets[node->references[j]];
         }
@@ -192,21 +235,22 @@ static struct wikiNode ** replaceIdsWithOffsets(struct wikiNode ** nodes, size_t
     return nodes;
 }
 
-static void writeTitlesToFile(FILE * in, FILE * out) {
+static void writeTitlesToFile(FILE * in, FILE * out, struct wikiNode ** nodes) {
     int c;
+    size_t i = 0;
     bool inTitle = true;
     rewind(in);
     while ((c = getc_unlocked(in)) != EOF) {
         if (inTitle) {
             if (c) {
-                putc_unlocked(c, out);
+                if (nodes[i]) putc_unlocked(c, out);
             } else {
                 inTitle = false;
-                putc_unlocked('\n', out);
+                if (nodes[i]) putc_unlocked('\n', out);
             }
-        } else {
-            if (c=='\n')
+        } else if (c=='\n') {
                 inTitle = true;
+                i++;
         }
     }
 }
@@ -214,6 +258,7 @@ static void writeTitlesToFile(FILE * in, FILE * out) {
 static void writeNodesToFile(struct wikiNode ** nodes, size_t titleCount, FILE * f) {
     for (size_t i=0;i<titleCount;i++) {
         struct wikiNode * node = nodes[i];
+        if (!node) continue;
         node->dist_a = 0;
         node->dist_b = 0;
         fwrite(node, 1, sizeof(*node)+(node->forward_length+node->backward_length)*sizeof(node->references[0]), f);
@@ -251,13 +296,16 @@ int main(int argc, char **argv) {
     id2node = addBackwardRefs(id2node, titleCount);
     fprintf(stderr, "Added backward references\n");
 
+    fprintf(stderr, "Removed %zu useless redirection pages\n", removeUselessRedirectionPages(id2node, titleCount));
+    fprintf(stderr, "Removed %zu backward references to unreachable node\n", removeSomeBackwardRefs(id2node, titleCount));
+
     id2nodeOffset = getNodeOffsets(id2node, titleCount);
     id2node = replaceIdsWithOffsets(id2node, titleCount, id2nodeOffset);
     fprintf(stderr, "Replaced ids with offsets\n");
     free(id2nodeOffset);
 
     writeNodesToFile(id2node, titleCount, nodeOut);
-    writeTitlesToFile(in, titleOut);
+    writeTitlesToFile(in, titleOut, id2node);
 
     return 0;
 }
