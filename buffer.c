@@ -8,7 +8,7 @@ struct buffer bufferCreate() {
     assert(res.content);
     return res;
 }
-struct buffer bufferCopy(struct buffer buf) {
+struct buffer bufferDup(struct buffer buf) {
     struct buffer newBuf = buf;
     newBuf.content = malloc(newBuf._size);
     memcpy(newBuf.content, buf.content, newBuf.used);
