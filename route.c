@@ -17,196 +17,143 @@ static void cleanNodes(char * nodeData, nodeRef * nodeOffsets, size_t nodeCount)
     }
 }
 
-static int skipLine(FILE * f) {
-    int c;
-    while ((c = getc_unlocked(f)) != '\n') {
-        if (c==EOF) return EOF;
-    }
-    return 0;
-}
-
 static void freePrint(char * format, char * str) {
     printf(format, str);
     free(str);
 }
 
-static void nodeRoute(FILE * titles, char * nodeData, nodeRef * nodeOffsets, size_t * titleOffsets, size_t nodeCount) {
-    struct buffer A = bufferCreate();
-    struct buffer B = bufferCreate();
-    struct buffer New = bufferCreate();
+static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * nodeData, nodeRef * nodeOffsets, size_t * titleOffsets, size_t nodeCount) {
+    size_t distA =1;
+    size_t distB =1;
+    bool match = false;
     struct buffer matches = bufferCreate();
-
-
-    while (true) {
-        char * str = NULL;
-        size_t len = 0;
-        uint32_t res;
-        int c, d;
-        size_t distA =1;
-        size_t distB =1;
-        bool match;
-        // TODO Make this more line based
-        switch (c=getchar_unlocked()) {
-        case EOF:
-            return;
-        case 'A':
-        case 'B':
-            if ((d=getchar())!=' ') {
-                fprintf(stderr, "Invalid input\n");
-                if (d!='\n') skipLine(stdin);
-                break;
-            }
-            getline(&str, &len, stdin);
-            len = strlen(str);
-            if (len>0&&str[len-1]=='\n') str[len-1] = '\0';
-            res = titleToNodeOffset(titles, nodeOffsets, titleOffsets, nodeCount, str);
-            if (res==-1) {
-                fprintf(stderr, "Could not find %s\n", str);
-                break;
-            }
-            if (c=='A') {
-                *(nodeRef *)bufferAdd(&A, sizeof(nodeRef)) = res;
-            } else {
-                *(nodeRef *)bufferAdd(&B, sizeof(nodeRef)) = res;
-            }
-            break;
-        case 'R':
-            if (getchar()!='\n') {
-                fprintf(stderr, "Invalid input\n");
-                skipLine(stdin);
-                break;
-            }
-            for (size_t i=0;i<A.used;i+=sizeof(nodeRef)) {
-                printf("A: %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)(A.content+i)));
-            }
-            for (size_t i=0;i<B.used;i+=sizeof(nodeRef)) {
-                printf("B: %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)(B.content+i)));
-            }
-            match = false;
-            while (!match) {
-               printf("A:%zu B:%zu\n", A.used/sizeof(nodeRef), B.used/sizeof(nodeRef));
-                if (A.used<=B.used) {
-                    nodeRef * content = (nodeRef *)A.content;
-                    struct buffer tmp;
-                    printf("Checking A\n");
-                    if (!A.used) break;
-                    for (size_t i=0;i<A.used/sizeof(nodeRef);i++) {
-                        struct wikiNode * node = getNode(nodeData, content[i]);
-                        if (node->dist_a) {
-                            continue;
-                        }
-                        if (node->dist_b) {
-                            freePrint("Match @ %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, content[i]));
-                            match = true;
-                            *(nodeRef *)bufferAdd(&matches, sizeof(nodeRef)) = content[i];
-                        }
-                        node->dist_a = distA;
-                        if (match) continue;
-                        for (size_t j=0;j<node->forward_length;j++) {
-                            *(nodeRef *)bufferAdd(&New, sizeof(nodeRef)) = node->references[j];
-                        }
-                    }
-                    printf("Checked A\n");
-                    distA++;
-                    tmp = A;
-                    A = New;
-                    New = tmp;
-                    New.used=0;
-                } else {
-                    nodeRef * content = (nodeRef *)B.content;
-                    struct buffer tmp;
-                    printf("Checking B\n");
-                    if (!B.used) break;
-                    for (size_t i=0;i<B.used/sizeof(size_t);i++) {
-                        struct wikiNode * node = getNode(nodeData, content[i]);
-                        if (node->dist_b) {
-                            continue;
-                        }
-                        if (node->dist_a) {
-                            freePrint("Match @ %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, content[i]));
-                            match = true;
-                            *(nodeRef *)bufferAdd(&matches, sizeof(nodeRef)) = content[i];
-                        }
-                        node->dist_b = distB;
-                        if (match) continue;
-                        for (size_t j=0;j<node->backward_length;j++) {
-                            *(nodeRef *)bufferAdd(&New, sizeof(nodeRef)) = node->references[j+node->forward_length];
-                        }
-                    }
-                    printf("Checked B\n");
-                    distB++;
-                    tmp = B;
-                    B = New;
-                    New = tmp;
-                    New.used=0;
+    struct buffer New = bufferCreate();
+    A = bufferDup(A);
+    B = bufferDup(B);
+    for (size_t i=0;i<A.used;i+=sizeof(nodeRef)) {
+        printf("A: %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)(A.content+i)));
+    }
+    for (size_t i=0;i<B.used;i+=sizeof(nodeRef)) {
+        printf("B: %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)(B.content+i)));
+    }
+    match = false;
+    while (!match) {
+       printf("A:%zu B:%zu\n", A.used/sizeof(nodeRef), B.used/sizeof(nodeRef));
+        if (A.used<=B.used) {
+            nodeRef * content = (nodeRef *)A.content;
+            struct buffer tmp;
+            printf("Checking A\n");
+            if (!A.used) break;
+            for (size_t i=0;i<A.used/sizeof(nodeRef);i++) {
+                struct wikiNode * node = getNode(nodeData, content[i]);
+                if (node->dist_a) {
+                    continue;
                 }
-                putchar('\n');
-            }
-            if (!match) {
-                printf("No route found\n");
-            } else {
-                // distA and distB are for the next layer, but we want the one for the matches layer
-                distA--;
-                distB--;
-                printf("%zu matches found\ndistA: %d, distB: %d\n", matches.used/4, distA, distB);
-                assert(!New.used);
-                while (distA>1) {
-                    struct buffer tmp;
-                    for (size_t i=0;i<matches.used/sizeof(nodeRef);i++) {
-                        struct wikiNode * node = getNode(nodeData, matches.u32content[i]);
-                        assert(node->dist_a==distA);
-                        for (size_t j=0;j<node->backward_length;j++) {
-                            struct wikiNode * target = getNode(nodeData, node->references[node->forward_length+j]);
-                            if (target->dist_a==distA-1) {
-                                target->dist_b = distB+1;
-                                *(nodeRef *)bufferAdd(&New, sizeof(nodeRef)) = (char *)target-nodeData;
-                            }
-                        }
-                    }
-                    distA--;
-                    distB++;
-                    tmp = matches;
-                    matches = New;
-                    New = tmp;
-                    New.used = 0;
+                if (node->dist_b) {
+                    freePrint("Match @ %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, content[i]));
+                    match = true;
+                    *(nodeRef *)bufferAdd(&matches, sizeof(nodeRef)) = content[i];
                 }
-                while (distB>1) {
-                    struct buffer tmp;
-                    for (size_t i=0;i<matches.used/sizeof(nodeRef);i++) {
-                        struct wikiNode * node = getNode(nodeData, matches.u32content[i]);
-                        if (!node->dist_b) continue;
-                        node->dist_b = 0;
-                        freePrint("%s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, matches.u32content[i]));
-                        for (size_t j=0;j<node->forward_length;j++) {
-                            struct wikiNode * target = getNode(nodeData, node->references[j]);
-                            if (target->dist_b==distB-1) {
-                                freePrint("\t%s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, (char *)target-nodeData));
-                                *(nodeRef *)bufferAdd(&New, sizeof(nodeRef)) = (char *)target-nodeData;
-                            }
-                        }
-                    }
-                    distA++;
-                    distB--;
-                    tmp = matches;
-                    matches = New;
-                    New = tmp;
-                    New.used = 0;
-                    putchar('\n');
+                node->dist_a = distA;
+                if (match) continue;
+                for (size_t j=0;j<node->forward_length;j++) {
+                    *(nodeRef *)bufferAdd(&New, sizeof(nodeRef)) = node->references[j];
                 }
             }
-
-            A.used=0;
-            B.used=0;
+            printf("Checked A\n");
+            distA++;
+            tmp = A;
+            A = New;
+            New = tmp;
             New.used=0;
-            matches.used=0;
-            cleanNodes(nodeData, nodeOffsets, nodeCount);
-            break;
-        default:
-            fprintf(stderr, "Invalid input\n");
-            skipLine(stdin);
-            break;
+        } else {
+            nodeRef * content = (nodeRef *)B.content;
+            struct buffer tmp;
+            printf("Checking B\n");
+            if (!B.used) break;
+            for (size_t i=0;i<B.used/sizeof(size_t);i++) {
+                struct wikiNode * node = getNode(nodeData, content[i]);
+                if (node->dist_b) {
+                    continue;
+                }
+                if (node->dist_a) {
+                    freePrint("Match @ %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, content[i]));
+                    match = true;
+                    *(nodeRef *)bufferAdd(&matches, sizeof(nodeRef)) = content[i];
+                }
+                node->dist_b = distB;
+                if (match) continue;
+                for (size_t j=0;j<node->backward_length;j++) {
+                    *(nodeRef *)bufferAdd(&New, sizeof(nodeRef)) = node->references[j+node->forward_length];
+                }
+            }
+            printf("Checked B\n");
+            distB++;
+            tmp = B;
+            B = New;
+            New = tmp;
+            New.used=0;
+        }
+        putchar('\n');
+    }
+    if (!match) {
+        printf("No route found\n");
+    } else {
+        // distA and distB are for the next layer, but we want the one for the matches layer
+        distA--;
+        distB--;
+        printf("%zu matches found\ndistA: %d, distB: %d\n", matches.used/4, distA, distB);
+        assert(!New.used);
+        while (distA>1) {
+            struct buffer tmp;
+            for (size_t i=0;i<matches.used/sizeof(nodeRef);i++) {
+                struct wikiNode * node = getNode(nodeData, matches.u32content[i]);
+                assert(node->dist_a==distA);
+                for (size_t j=0;j<node->backward_length;j++) {
+                    struct wikiNode * target = getNode(nodeData, node->references[node->forward_length+j]);
+                    if (target->dist_a==distA-1) {
+                        target->dist_b = distB+1;
+                        *(nodeRef *)bufferAdd(&New, sizeof(nodeRef)) = (char *)target-nodeData;
+                    }
+                }
+            }
+            distA--;
+            distB++;
+            tmp = matches;
+            matches = New;
+            New = tmp;
+            New.used = 0;
+        }
+        while (distB>1) {
+            struct buffer tmp;
+            for (size_t i=0;i<matches.used/sizeof(nodeRef);i++) {
+                struct wikiNode * node = getNode(nodeData, matches.u32content[i]);
+                if (!node->dist_b) continue;
+                node->dist_b = 0;
+                freePrint("%s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, matches.u32content[i]));
+                for (size_t j=0;j<node->forward_length;j++) {
+                    struct wikiNode * target = getNode(nodeData, node->references[j]);
+                    if (target->dist_b==distB-1) {
+                        freePrint("\t%s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, (char *)target-nodeData));
+                        *(nodeRef *)bufferAdd(&New, sizeof(nodeRef)) = (char *)target-nodeData;
+                    }
+                }
+            }
+            distA++;
+            distB--;
+            tmp = matches;
+            matches = New;
+            New = tmp;
+            New.used = 0;
+            putchar('\n');
         }
     }
+
+    free(A.content);
+    free(B.content);
+    free(New.content);
+    free(matches.content);
+    cleanNodes(nodeData, nodeOffsets, nodeCount);
 }
 
 int main(int argc, char ** argv) {
@@ -242,6 +189,49 @@ int main(int argc, char ** argv) {
     printf("Calculated offsets for %zu titles\n", titleCount);
     assert(titleCount == nodeCount);
 
-    nodeRoute(titleFile, nodeData, nodeOffsets, titleOffsets, nodeCount);
+
+    struct buffer A = bufferCreate();
+    struct buffer B = bufferCreate();
+
+
+    while (true) {
+        char * str = NULL;
+        size_t len = 0;
+        uint32_t res;
+        int c;
+
+
+        getline(&str, &len, stdin);
+        len = strlen(str);
+        if (len>0&&str[len-1]=='\n') str[len-1] = '\0';
+        switch (c=str[0]) {
+        case 'A':
+        case 'B':
+            if (str[1]!=' ') {
+                fprintf(stderr, "Invalid input\n");
+                break;
+            }
+            res = titleToNodeOffset(titleFile, nodeOffsets, titleOffsets, nodeCount, str+2);
+            if (res==-1) {
+                fprintf(stderr, "Could not find %s\n", str);
+                break;
+            }
+            if (c=='A') {
+                *(nodeRef *)bufferAdd(&A, sizeof(nodeRef)) = res;
+            } else {
+                *(nodeRef *)bufferAdd(&B, sizeof(nodeRef)) = res;
+            }
+            break;
+        case 'R':
+            nodeRoute(A, B, titleFile, nodeData, nodeOffsets, titleOffsets, nodeCount);
+            A.used = 0;
+            B.used = 0;
+            break;
+        default:
+            fprintf(stderr, "Invalid input\n");
+            break;
+        }
+    }
+
     return 0;
 }
