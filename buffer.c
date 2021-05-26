@@ -3,10 +3,16 @@
 
 #include "buffer.h"
 struct buffer bufferCreate() {
-    struct buffer res = {NULL, 0, 1024};
+    struct buffer res = {{NULL}, 0, 1024};
     res.content = malloc(1024);
     assert(res.content);
     return res;
+}
+struct buffer bufferCopy(struct buffer buf) {
+    struct buffer newBuf = buf;
+    newBuf.content = malloc(newBuf._size);
+    memcpy(newBuf.content, buf.content, newBuf.used);
+    return newBuf;
 }
 void bufferCompact(struct buffer * buf) {
     buf->_size = buf->used;
