@@ -85,7 +85,7 @@ static size_t title2id(char ** id2title, size_t titleCount, char * title) {
     return -1;
 }
 
-static struct wikiNode * addReference(struct wikiNode * node, size_t ref, bool backward) {
+static struct wikiNode * addReference(struct wikiNode * node, nodeRef ref, bool backward) {
     struct wikiNode * res;
     if (!backward) {
         for (int i=0;i<node->forward_length;i++)
@@ -117,7 +117,7 @@ static struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount
         if (inLink) {
             *(bufferAdd(&titleBuf, 1)) = uppercaseChar(c);
             if (c=='\0') {
-                size_t ref = title2id(id2title, titleCount, titleBuf.content+1); // titleBuf.content+1, becauce the first char needs to be ignored
+                nodeRef ref = title2id(id2title, titleCount, titleBuf.content+1); // titleBuf.content+1, becauce the first char needs to be ignored
                 titleBuf.used = 0;
                 if (ref==-1) continue;
                 if (titleBuf.content[0]==uppercaseChar('r')&&!nodes[id]->redirect) nodes[id]->redirect = nodes[id]->forward_length+1;
@@ -139,7 +139,7 @@ static struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount
 }
 
 static struct wikiNode ** applyRedirects(struct wikiNode ** nodes, size_t titleCount) {
-    size_t * redirects = malloc(titleCount*sizeof(size_t));
+    nodeRef * redirects = malloc(titleCount*sizeof(nodeRef));
     for (size_t i=0;i<titleCount;i++) {
         if (nodes[i]->redirect) {
             if (nodes[i]->forward_length!=1) {
@@ -185,7 +185,7 @@ static size_t removeUselessRedirectionPages(struct wikiNode ** nodes, size_t tit
 
 static size_t removeSomeBackwardRefs(struct wikiNode ** nodes, size_t titleCount) {
     // remove backward refs to unreachable nodes
-    const uint32_t unreachable = -1;
+    const nodeRef unreachable = -1;
     size_t removed = 0;
     for (size_t i=0;i<titleCount;i++) {
         struct wikiNode * node = nodes[i];
@@ -212,9 +212,9 @@ static size_t removeSomeBackwardRefs(struct wikiNode ** nodes, size_t titleCount
     }
     return removed;
 }
-static size_t * getNodeOffsets(struct wikiNode ** nodes, size_t titleCount) {
-    size_t offset = 0;
-    size_t * offsets = malloc(sizeof(size_t)*titleCount);
+static nodeRef * getNodeOffsets(struct wikiNode ** nodes, size_t titleCount) {
+    nodeRef offset = 0;
+    nodeRef * offsets = malloc(sizeof(nodeRef)*titleCount);
     for (size_t i=0;i<titleCount;i++) {
         offsets[i] = offset;
         if (!nodes[i]) continue;
@@ -224,7 +224,7 @@ static size_t * getNodeOffsets(struct wikiNode ** nodes, size_t titleCount) {
     return offsets;
 }
 
-static struct wikiNode ** replaceIdsWithOffsets(struct wikiNode ** nodes, size_t titleCount, size_t * offsets) {
+static struct wikiNode ** replaceIdsWithOffsets(struct wikiNode ** nodes, size_t titleCount, nodeRef * offsets) {
     for (size_t i=0;i<titleCount;i++) {
         struct wikiNode * node = nodes[i];
         if (!node) continue;
@@ -272,7 +272,7 @@ int main(int argc, char **argv) {
     char ** id2title;
     size_t titleCount;
     struct wikiNode ** id2node;
-    size_t * id2nodeOffset;
+    nodeRef * id2nodeOffset;
     //char search[256];
     if (argc<4) {
         fprintf(stderr, "Usage: %s <input file> <node output file> <title output file>\n", argv[0]);

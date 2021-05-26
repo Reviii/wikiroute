@@ -9,7 +9,7 @@
 #include "nodetypes.h"
 #include "nodeutils.h"
 
-static void cleanNodes(char * nodeData, uint32_t * nodeOffsets, size_t nodeCount) {
+static void cleanNodes(char * nodeData, nodeRef * nodeOffsets, size_t nodeCount) {
     for (size_t i=0;i<nodeCount;i++) {
         struct wikiNode * node = getNode(nodeData, nodeOffsets[i]);
         node->dist_a = 0;
@@ -30,7 +30,7 @@ static void freePrint(char * format, char * str) {
     free(str);
 }
 
-static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, size_t * titleOffsets, size_t nodeCount) {
+static void nodeRoute(FILE * titles, char * nodeData, nodeRef * nodeOffsets, size_t * titleOffsets, size_t nodeCount) {
     struct buffer A = bufferCreate();
     struct buffer B = bufferCreate();
     struct buffer New = bufferCreate();
@@ -65,9 +65,9 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
                 break;
             }
             if (c=='A') {
-                *(size_t *)bufferAdd(&A, sizeof(size_t)) = res;
+                *(nodeRef *)bufferAdd(&A, sizeof(nodeRef)) = res;
             } else {
-                *(size_t *)bufferAdd(&B, sizeof(size_t)) = res;
+                *(nodeRef *)bufferAdd(&B, sizeof(nodeRef)) = res;
             }
             break;
         case 'R':
@@ -76,21 +76,21 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
                 skipLine(stdin);
                 break;
             }
-            for (size_t i=0;i<A.used;i+=sizeof(size_t)) {
-                printf("A: %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(size_t *)(A.content+i)));
+            for (size_t i=0;i<A.used;i+=sizeof(nodeRef)) {
+                printf("A: %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)(A.content+i)));
             }
-            for (size_t i=0;i<B.used;i+=sizeof(size_t)) {
-                printf("B: %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(size_t *)(B.content+i)));
+            for (size_t i=0;i<B.used;i+=sizeof(nodeRef)) {
+                printf("B: %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)(B.content+i)));
             }
             match = false;
             while (!match) {
-               printf("A:%zu B:%zu\n", A.used/sizeof(size_t), B.used/sizeof(size_t));
+               printf("A:%zu B:%zu\n", A.used/sizeof(nodeRef), B.used/sizeof(nodeRef));
                 if (A.used<=B.used) {
-                    size_t * content = (size_t *)A.content;
+                    nodeRef * content = (nodeRef *)A.content;
                     struct buffer tmp;
                     printf("Checking A\n");
                     if (!A.used) break;
-                    for (size_t i=0;i<A.used/sizeof(size_t);i++) {
+                    for (size_t i=0;i<A.used/sizeof(nodeRef);i++) {
                         struct wikiNode * node = getNode(nodeData, content[i]);
                         if (node->dist_a) {
                             continue;
@@ -98,12 +98,12 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
                         if (node->dist_b) {
                             freePrint("Match @ %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, content[i]));
                             match = true;
-                            *(uint32_t *)bufferAdd(&matches, sizeof(uint32_t)) = content[i];
+                            *(nodeRef *)bufferAdd(&matches, sizeof(nodeRef)) = content[i];
                         }
                         node->dist_a = distA;
                         if (match) continue;
                         for (size_t j=0;j<node->forward_length;j++) {
-                            *(size_t *)bufferAdd(&New, sizeof(size_t)) = node->references[j];
+                            *(nodeRef *)bufferAdd(&New, sizeof(nodeRef)) = node->references[j];
                         }
                     }
                     printf("Checked A\n");
@@ -113,7 +113,7 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
                     New = tmp;
                     New.used=0;
                 } else {
-                    size_t * content = (size_t *)B.content;
+                    nodeRef * content = (nodeRef *)B.content;
                     struct buffer tmp;
                     printf("Checking B\n");
                     if (!B.used) break;
@@ -125,12 +125,12 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
                         if (node->dist_a) {
                             freePrint("Match @ %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, content[i]));
                             match = true;
-                            *(uint32_t *)bufferAdd(&matches, sizeof(uint32_t)) = content[i];
+                            *(nodeRef *)bufferAdd(&matches, sizeof(nodeRef)) = content[i];
                         }
                         node->dist_b = distB;
                         if (match) continue;
                         for (size_t j=0;j<node->backward_length;j++) {
-                            *(size_t *)bufferAdd(&New, sizeof(size_t)) = node->references[j+node->forward_length];
+                            *(nodeRef *)bufferAdd(&New, sizeof(nodeRef)) = node->references[j+node->forward_length];
                         }
                     }
                     printf("Checked B\n");
@@ -152,14 +152,14 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
                 assert(!New.used);
                 while (distA>1) {
                     struct buffer tmp;
-                    for (size_t i=0;i<matches.used/sizeof(uint32_t);i++) {
+                    for (size_t i=0;i<matches.used/sizeof(nodeRef);i++) {
                         struct wikiNode * node = getNode(nodeData, matches.u32content[i]);
                         assert(node->dist_a==distA);
                         for (size_t j=0;j<node->backward_length;j++) {
                             struct wikiNode * target = getNode(nodeData, node->references[node->forward_length+j]);
                             if (target->dist_a==distA-1) {
                                 target->dist_b = distB+1;
-                                *(uint32_t *)bufferAdd(&New, 4) = (char *)target-nodeData;
+                                *(nodeRef *)bufferAdd(&New, sizeof(nodeRef)) = (char *)target-nodeData;
                             }
                         }
                     }
@@ -172,7 +172,7 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
                 }
                 while (distB>1) {
                     struct buffer tmp;
-                    for (size_t i=0;i<matches.used/sizeof(uint32_t);i++) {
+                    for (size_t i=0;i<matches.used/sizeof(nodeRef);i++) {
                         struct wikiNode * node = getNode(nodeData, matches.u32content[i]);
                         if (!node->dist_b) continue;
                         node->dist_b = 0;
@@ -181,7 +181,7 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
                             struct wikiNode * target = getNode(nodeData, node->references[j]);
                             if (target->dist_b==distB-1) {
                                 freePrint("\t%s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, (char *)target-nodeData));
-                                *(uint32_t *)bufferAdd(&New, 4) = (char *)target-nodeData;
+                                *(nodeRef *)bufferAdd(&New, sizeof(nodeRef)) = (char *)target-nodeData;
                             }
                         }
                     }
@@ -215,7 +215,7 @@ int main(int argc, char ** argv) {
     size_t nodeCount = 0;
     FILE * titleFile = NULL;
     size_t titleCount = 0;
-    uint32_t * nodeOffsets = NULL;
+    nodeRef * nodeOffsets = NULL;
     size_t * titleOffsets = NULL;
 
     if (argc<3) {

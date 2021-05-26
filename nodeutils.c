@@ -8,17 +8,17 @@
 #include "nodetypes.h"
 #include "nodeutils.h"
 
-uint32_t * getNodeOffsets(char * nodeData, size_t nodeDataLength, size_t * nodeCount) {
-    uint32_t offset = 0;
+nodeRef * getNodeOffsets(char * nodeData, size_t nodeDataLength, size_t * nodeCount) {
+    nodeRef offset = 0;
     struct buffer offsetBuf = bufferCreate();
     *nodeCount = 0;
     while (offset<nodeDataLength) {
         struct wikiNode * node = (struct wikiNode *) (nodeData + offset);
-        *(uint32_t *)bufferAdd(&offsetBuf, sizeof(uint32_t)) = offset;
+        *(nodeRef *)bufferAdd(&offsetBuf, sizeof(nodeRef)) = offset;
         (*nodeCount)++;
         offset += sizeof(*node) + (node->forward_length+node->backward_length)*sizeof(node->references[0]);
     }
-    return (uint32_t *) offsetBuf.content;
+    return (nodeRef *) offsetBuf.content;
 }
 
 static int skipLine(FILE * f) {
@@ -51,7 +51,7 @@ char * getTitle(FILE * titles, size_t * titleOffsets, size_t id) {
     return title;
 }
 
-char * nodeOffsetToTitle(FILE * titles, uint32_t * nodeOffsets, size_t * titleOffsets, size_t nodeCount, uint32_t nodeOffset) {
+char * nodeOffsetToTitle(FILE * titles, nodeRef * nodeOffsets, size_t * titleOffsets, size_t nodeCount, nodeRef nodeOffset) {
     ssize_t first, middle, last;
     first = 0;
     last = nodeCount - 1;
@@ -76,7 +76,7 @@ void normalizeTitle(char * title) {
     }
 }
 
-uint32_t titleToNodeOffset(FILE * titles, uint32_t * nodeOffsets, size_t * titleOffsets, size_t nodeCount, char * title) {
+nodeRef titleToNodeOffset(FILE * titles, nodeRef * nodeOffsets, size_t * titleOffsets, size_t nodeCount, char * title) {
     ssize_t first, middle, last;
     first = 0;
     last = nodeCount - 1;
