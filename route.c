@@ -25,6 +25,11 @@ static int skipLine(FILE * f) {
     return 0;
 }
 
+static void freePrint(char * format, char * str) {
+    printf(format, str);
+    free(str);
+}
+
 static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, size_t * titleOffsets, size_t nodeCount) {
     struct buffer A = bufferCreate();
     struct buffer B = bufferCreate();
@@ -89,9 +94,7 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
                             continue;
                         }
                         if (node->dist_b) {
-                            char * title = nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, content[i]);
-                            printf("Match @ %s\n", title);
-                            free(title);
+                            freePrint("Match @ %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, content[i]));
                             match = true;
                         }
                         node->dist_a = distA;
@@ -117,9 +120,7 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
                             continue;
                         }
                         if (node->dist_a) {
-                            char * title = nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, content[i]);
-                            printf("Match @ %s\n", title);
-                            free(title);
+                            freePrint("Match @ %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, content[i]));
                             match = true;
                         }
                         node->dist_b = distB;
@@ -152,6 +153,7 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
         }
     }
 }
+
 int main(int argc, char ** argv) {
     char * nodeData = NULL;
     size_t nodeDataLength = 0;
