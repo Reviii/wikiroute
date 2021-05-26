@@ -34,6 +34,8 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
     struct buffer A = bufferCreate();
     struct buffer B = bufferCreate();
     struct buffer New = bufferCreate();
+    struct buffer matches = bufferCreate();
+
 
     while (true) {
         char * str = NULL;
@@ -96,6 +98,7 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
                         if (node->dist_b) {
                             freePrint("Match @ %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, content[i]));
                             match = true;
+                            *(uint32_t *)bufferAdd(&matches, sizeof(uint32_t)) = content[i];
                         }
                         node->dist_a = distA;
                         if (match) continue;
@@ -122,6 +125,7 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
                         if (node->dist_a) {
                             freePrint("Match @ %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, content[i]));
                             match = true;
+                            *(uint32_t *)bufferAdd(&matches, sizeof(uint32_t)) = content[i];
                         }
                         node->dist_b = distB;
                         if (match) continue;
@@ -140,10 +144,57 @@ static void nodeRoute(FILE * titles, char * nodeData, uint32_t * nodeOffsets, si
             }
             if (!match) {
                 printf("No route found\n");
+            } else {
+                // distA and distB are for the next layer, but we want the one for the matches layer
+                distA--;
+                distB--;
+                printf("%zu matches found\ndistA: %d, distB: %d\n", matches.used/4, distA, distB);
+                assert(!New.used);
+                while (distA>1) {
+                    struct buffer tmp;
+                    for (size_t i=0;i<matches.used/sizeof(uint32_t);i++) {
+                        struct wikiNode * node = getNode(nodeData, matches.u32content[i]);
+                        node->dist_b = distB;
+                        for (size_t j=0;j<node->backward_length;j++) {
+                            struct wikiNode * target = getNode(nodeData, node->references[node->forward_length+j]);
+                            if (target->dist_a==distA-1) {
+                                *(uint32_t *)bufferAdd(&New, 4) = (char *)target-nodeData;
+                            }
+                        }
+                    }
+                    distA--;
+                    distB++;
+                    tmp = matches;
+                    matches = New;
+                    New = matches;
+                    New.used = 0;
+                }
+                while (distB>1) {
+                    struct buffer tmp;
+                    for (size_t i=0;i<matches.used/sizeof(uint32_t);i++) {
+                        struct wikiNode * node = getNode(nodeData, matches.u32content[i]);
+                        freePrint("%s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, matches.u32content[i]));
+                        for (size_t j=0;j<node->forward_length;j++) {
+                            struct wikiNode * target = getNode(nodeData, node->references[j]);
+                            if (target->dist_b==distB-1) {
+                                freePrint("\t%s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, (char *)target-nodeData));
+                                *(uint32_t *)bufferAdd(&New, 4) = (char *)target-nodeData;
+                            }
+                        }
+                    }
+                    distA++;
+                    distB--;
+                    tmp = matches;
+                    matches = New;
+                    New = matches;
+                    New.used = 0;
+                }
             }
+
             A.used=0;
             B.used=0;
             New.used=0;
+            matches.used=0;
             cleanNodes(nodeData, nodeOffsets, nodeCount);
             break;
         default:

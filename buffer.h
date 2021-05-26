@@ -1,7 +1,10 @@
 #include <assert.h>
 // buffer is an automatically resizing array of chars
 struct buffer {
-    char * content;
+    union {
+        char * content;
+        uint32_t * u32content;
+    };
     size_t used;
     size_t _size;
 };
