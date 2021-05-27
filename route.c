@@ -201,7 +201,8 @@ int main(int argc, char ** argv) {
         int c;
 
 
-        getline(&str, &len, stdin);
+        if (getline(&str, &len, stdin)==-1)
+            break;
         len = strlen(str);
         if (len>0&&str[len-1]=='\n') str[len-1] = '\0';
         switch (c=str[0]) {
@@ -231,6 +232,9 @@ int main(int argc, char ** argv) {
             fprintf(stderr, "Invalid input\n");
             break;
         }
+        free(str);
+        str = NULL;
+        len = 0;
     }
 
     return 0;
