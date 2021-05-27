@@ -150,6 +150,7 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
             }
             distA++;
             distB--;
+            assert(New.used);
             tmp = matches;
             matches = New;
             New = tmp;
