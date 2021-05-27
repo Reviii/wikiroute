@@ -224,7 +224,7 @@ int main(int argc, char ** argv) {
             }
             res = titleToNodeOffset(titleFile, nodeOffsets, titleOffsets, nodeCount, str+2);
             if (res==-1) {
-                fprintf(stderr, "Could not find %s\n", str);
+                fprintf(stderr, "Could not find %s\n", str+2);
                 break;
             }
             if (c=='A') {
