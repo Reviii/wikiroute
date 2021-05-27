@@ -28,7 +28,7 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
     bool match = false;
     struct buffer matches = bufferCreate();
     struct buffer New = bufferCreate();
-    struct buffer originalA = A;
+    struct buffer originalA = bufferDup(A);
     A = bufferDup(A);
     B = bufferDup(B);
     for (size_t i=0;i<A.used;i+=sizeof(nodeRef)) {
@@ -125,6 +125,7 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
             New = tmp;
             New.used = 0;
         }
+        free(matches.content);
         matches = originalA;
         for (size_t i=0;i<matches.used/sizeof(nodeRef);i++) {
             struct wikiNode * node = getNode(nodeData, matches.u32content[i]);
