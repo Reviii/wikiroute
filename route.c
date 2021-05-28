@@ -22,6 +22,13 @@ static void freePrint(char * format, char * str) {
     free(str);
 }
 
+static bool shouldChooseSideA(int distA, int distB, struct buffer A, struct buffer B) {
+    if (distA==1) return true;
+    if (distB==1) return false;
+    if (distA==2) return true;
+    return A.used<=B.used;
+}
+
 static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * nodeData, nodeRef * nodeOffsets, size_t * titleOffsets, size_t nodeCount) {
     size_t distA =1;
     size_t distB =1;
@@ -37,10 +44,9 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
     for (size_t i=0;i<B.used;i+=sizeof(nodeRef)) {
         printf("B: %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)(B.content+i)));
     }
-    match = false;
     while (!match) {
        printf("A:%zu B:%zu\n", A.used/sizeof(nodeRef), B.used/sizeof(nodeRef));
-        if (A.used<=B.used) {
+        if (shouldChooseSideA(distA, distB, A, B)) {
             nodeRef * content = (nodeRef *)A.content;
             struct buffer tmp;
             printf("Checking A\n");
