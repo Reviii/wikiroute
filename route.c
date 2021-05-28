@@ -214,11 +214,13 @@ int main(int argc, char ** argv) {
         if (getline(&str, &len, stdin)==-1)
             break;
         len = strlen(str);
-        if (len>0&&str[len-1]=='\n') str[len-1] = '\0';
+        if (len>0&&str[len-1]=='\n')
+            str[--len] = '\0';
+        if (len==0) continue;
         switch (c=str[0]) {
         case 'A':
         case 'B':
-            if (str[1]!=' ') {
+            if (len<2||str[1]!=' ') {
                 fprintf(stderr, "Invalid input\n");
                 break;
             }
