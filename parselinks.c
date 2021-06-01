@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "buffer.h"
+#include "iteratefile.h"
 #include "nodetypes.h"
 
 static FILE * openFileAndCheck(char * path, char * options, char * name, FILE * std) {
@@ -32,12 +33,11 @@ static char ** getTitleListFromFile(FILE * f, size_t * titleCount) {
     struct buffer stringBuf = bufferCreate();
     struct buffer offsetBuf = bufferCreate();
     bool inTitle = true;
-    int c;
     size_t* offsets = NULL;
     char ** res = NULL;
 
     *(size_t *)bufferAdd(&offsetBuf, sizeof(size_t)) = stringBuf.used;
-    while ((c=getc_unlocked(f))!=EOF) {
+    iterateFile(f, c,
         if (inTitle) {
             *bufferAdd(&stringBuf, sizeof(char)) = uppercaseChar(c);
             if (!c) {
@@ -49,7 +49,7 @@ static char ** getTitleListFromFile(FILE * f, size_t * titleCount) {
                 inTitle = true;
             }
         }
-    }
+    )
     // uncomment the following line to reduce virtual memory usage
     //bufferCompact(&stringBuf);
 
@@ -106,14 +106,13 @@ static struct wikiNode * addReference(struct wikiNode * node, nodeRef ref, bool 
 }
 
 static struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount) {
-    int c;
     int id = 0;
     bool inLink = false;
     struct buffer titleBuf = bufferCreate();
     struct wikiNode ** nodes = malloc(titleCount*sizeof(struct wikiNode *));
     rewind(f);
     nodes[0] = calloc(sizeof(struct wikiNode), 1);
-    while ((c=getc_unlocked(f))!=EOF) {
+    iterateFile(f, c,
         if (inLink) {
             *(bufferAdd(&titleBuf, 1)) = uppercaseChar(c);
             if (c=='\0') {
@@ -134,7 +133,7 @@ static struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount
                 inLink = true;
             }
         }
-    }
+    )
     return nodes;
 }
 

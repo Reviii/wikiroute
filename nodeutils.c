@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include "buffer.h"
+#include "iteratefile.h"
 #include "nodetypes.h"
 #include "nodeutils.h"
 
@@ -21,24 +22,18 @@ nodeRef * getNodeOffsets(char * nodeData, size_t nodeDataLength, size_t * nodeCo
     return (nodeRef *) offsetBuf.content;
 }
 
-static int skipLine(FILE * f) {
-    int c;
-    while ((c = getc_unlocked(f)) != '\n') {
-        if (c==EOF) return EOF;
-    }
-    return 0;
-}
-
 size_t * getTitleOffsets(FILE * f, size_t * titleCount) {
     size_t offset = 0;
     struct buffer offsetBuf = bufferCreate();
     *titleCount = 0;
-    while (skipLine(f) != EOF) {
-        *(size_t *)bufferAdd(&offsetBuf, sizeof(size_t)) = offset;
-        (*titleCount)++;
-        offset = ftello(f);
-        assert(offset!=-1);
-    }
+    *(size_t *)bufferAdd(&offsetBuf, sizeof(size_t)) = 0;
+    iterateFile(f, c,
+        if (c=='\n') {
+            *(size_t *)bufferAdd(&offsetBuf, sizeof(size_t)) = offset+1;
+            (*titleCount)++;
+        }
+        offset++;
+    )
     return (size_t *) offsetBuf.content;
 }
 
