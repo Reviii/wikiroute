@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -13,7 +14,7 @@
 #define STATE_FORMAT 5
 #define STATE_TEXT 6
 
-extern void printlinks(const char * wikiText, int length);
+extern void printlinks(const char * wikiText, size_t length);
 
 static int state = STATE_NULL;
 static xmlChar * title;
