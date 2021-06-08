@@ -1,9 +1,7 @@
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdbool.h>
-static void printlink(const char * link, int length, bool redirect, bool ignore) {
-    if (ignore) {
-        return;
-    }
+static void printlink(const char * link, int length, bool redirect) {
     if (redirect) {
         putchar('r');
     } else {
@@ -40,10 +38,10 @@ void printlinks(const char * wikiText, size_t length) {
             }
             /* fall through */
         case STATE_TEXT:
-            if (c=='#') {
-                state = STATE_HASH;
-            } else if (c=='[') {
+            if (c=='[') {
                 state = STATE_ALMOSTLINK;
+            } else if (c=='#') {
+                state = STATE_HASH;
             }
             break;
         case STATE_HASH:
@@ -81,7 +79,7 @@ void printlinks(const char * wikiText, size_t length) {
             break;
         case STATE_LINK:
             if (c==']'||c=='|') {
-                printlink(link, correctChars, redirect, false);
+                printlink(link, correctChars, redirect);
                 redirect = false;
                 state = STATE_LINKEND;
                 correctChars = (c==']');
@@ -97,11 +95,12 @@ void printlinks(const char * wikiText, size_t length) {
         case STATE_LINKEND:
             if (c==']') {
                 correctChars++;
+                if (correctChars==2) {
+                    state = STATE_TEXT;
+                }
             } else {
                 correctChars = 0;
             }
-            if (correctChars==2)
-                state = STATE_TEXT;
             break;
         }
     }
