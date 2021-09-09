@@ -158,7 +158,9 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
             New.used = 0;
             putchar('\n');
         }
+        putchar('\n');
     }
+
 
     free(A.content);
     free(B.content);
