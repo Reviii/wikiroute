@@ -49,7 +49,6 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
         if (shouldChooseSideA(distA, distB, A, B)) {
             nodeRef * content = (nodeRef *)A.content;
             struct buffer tmp;
-            printf("Checking A\n");
             if (!A.used) break;
             for (size_t i=0;i<A.used/sizeof(nodeRef);i++) {
                 struct wikiNode * node = getNode(nodeData, content[i]);
@@ -67,7 +66,6 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
                     *(nodeRef *)bufferAdd(&New, sizeof(nodeRef)) = node->references[j];
                 }
             }
-            printf("Checked A\n");
             distA++;
             tmp = A;
             A = New;
@@ -76,7 +74,6 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
         } else {
             nodeRef * content = (nodeRef *)B.content;
             struct buffer tmp;
-            printf("Checking B\n");
             if (!B.used) break;
             for (size_t i=0;i<B.used/sizeof(size_t);i++) {
                 struct wikiNode * node = getNode(nodeData, content[i]);
@@ -94,14 +91,12 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
                     *(nodeRef *)bufferAdd(&New, sizeof(nodeRef)) = node->references[j+node->forward_length];
                 }
             }
-            printf("Checked B\n");
             distB++;
             tmp = B;
             B = New;
             New = tmp;
             New.used=0;
         }
-        putchar('\n');
     }
     if (!match) {
         printf("No route found\n");
