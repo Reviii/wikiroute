@@ -191,7 +191,7 @@ int main(int argc, char ** argv) {
         fprintf(stderr, "Failed to mmap node file\n");
         return -1;
     }
-    printf("Mmapped %d bytes\n", nodeDataLength);
+    fprintf(stderr, "Mmapped %d bytes\n", nodeDataLength);
 
     titleFile = fopen(argv[2], "r");
     if (!titleFile) {
@@ -200,9 +200,9 @@ int main(int argc, char ** argv) {
     }
 
     nodeOffsets = getNodeOffsets(nodeData, nodeDataLength, &nodeCount);
-    printf("Calculated offsets for %zu nodes\n", nodeCount);
+    fprintf(stderr, "Calculated offsets for %zu nodes\n", nodeCount);
     titleOffsets = getTitleOffsets(titleFile, &titleCount);
-    printf("Calculated offsets for %zu titles\n", titleCount);
+    fprintf(stderr, "Calculated offsets for %zu titles\n", titleCount);
     assert(titleCount == nodeCount);
 
 
