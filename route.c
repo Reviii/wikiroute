@@ -104,7 +104,7 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
         // distA and distB are for the next layer, but we want the one for the matches layer
         distA--;
         distB--;
-        printf("%zu matches found\ndistA: %d, distB: %d\n", matches.used/4, distA, distB);
+        printf("%zu matches found\ndistA: %zu, distB: %zu\n", matches.used/4, distA, distB);
         assert(!New.used);
         while (distA>2) {
             struct buffer tmp;
@@ -188,7 +188,7 @@ int main(int argc, char ** argv) {
         fprintf(stderr, "Failed to mmap node file\n");
         return -1;
     }
-    fprintf(stderr, "Mmapped %d bytes\n", nodeDataLength);
+    fprintf(stderr, "Mmapped %zu bytes\n", nodeDataLength);
 
     titleFile = fopen(argv[2], "r");
     if (!titleFile) {

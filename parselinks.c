@@ -219,7 +219,7 @@ static nodeRef * getNodeOffsets(struct wikiNode ** nodes, size_t titleCount) {
         if (!nodes[i]) continue;
         offset += sizeof(struct wikiNode)+(nodes[i]->forward_length+nodes[i]->backward_length)*sizeof(nodes[i]->references[0]);
     }
-    fprintf(stderr, "Total node size: %zu\n", offset);
+    fprintf(stderr, "Total node size: %u\n", offset);
     return offsets;
 }
 
