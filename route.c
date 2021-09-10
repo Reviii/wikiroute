@@ -75,7 +75,7 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
             nodeRef * content = (nodeRef *)B.content;
             struct buffer tmp;
             if (!B.used) break;
-            for (size_t i=0;i<B.used/sizeof(size_t);i++) {
+            for (size_t i=0;i<B.used/sizeof(nodeRef);i++) {
                 struct wikiNode * node = getNode(nodeData, content[i]);
                 if (node->dist_b) {
                     continue;
