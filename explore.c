@@ -29,7 +29,7 @@ int main(int argc, char ** argv) {
         fprintf(stderr, "Failed to mmap node file\n");
         return -1;
     }
-    printf("Mmapped %d bytes\n", nodeDataLength);
+    printf("Mmapped %zu bytes\n", nodeDataLength);
 
     titleFile = fopen(argv[2], "r");
     if (!titleFile) {
@@ -58,7 +58,7 @@ int main(int argc, char ** argv) {
 
         node = getNode(nodeData, nodeOffset);
         printf("Offset: %u\n", nodeOffset);
-        printf("Length: %u\n", sizeof(*node) + (node->forward_length+node->backward_length)*sizeof(node->references[0]));
+        printf("Length: %zu\n", sizeof(*node) + (node->forward_length+node->backward_length)*sizeof(node->references[0]));
         title = nodeOffsetToTitle(titleFile, nodeOffsets, titleOffsets, nodeCount, nodeOffset);
         printf("Title: %s\n", title);
         if (node->forward_length+node->backward_length>500) {
