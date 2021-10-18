@@ -5,6 +5,7 @@ explore
 extracttitles
 extractlinks
 parselinks
+parsesql
 route
 
 links.txt

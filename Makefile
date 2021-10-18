@@ -1,5 +1,5 @@
 CFLAGS = -O3 -Wall
-ALL = extractlinks parselinks explore route
+ALL = extractlinks parselinks explore route parsesql
 all: $(ALL)
 
 extractlinks: extractlinks.o printlinks.o
