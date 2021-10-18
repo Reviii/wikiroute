@@ -32,6 +32,10 @@ void parseSql(FILE * in) {
         if (bracketLevel==0) {
             assert(len<2);
             if (len==0) {
+                if (c==';') {
+                    started = false;
+                    continue;
+                }
                 assert(c==',');
                 len++;
             } else if (len==1) {
