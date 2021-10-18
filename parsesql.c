@@ -8,6 +8,7 @@ static char * startStr = "INSERT INTO `pagelinks` VALUES ";
 void parseSql(FILE * in) {
     int bracketLevel = 0;
     int len = 0;
+    bool escaped = false;
     int i = 0;
     bool started = false;
 
@@ -71,8 +72,11 @@ void parseSql(FILE * in) {
                 len++;
                 break;
             }
-            // TODO: handle escaping
-            if (c=='\'') {
+            if (c=='\\'&&!escaped) {
+                escaped = true;
+                break;
+            }
+            if (c=='\''&&!escaped) {
                 resStr[len-1] = 0;
                 printf("value[%d] = '%s'\n", i, resStr);
                 len = -1;
@@ -81,6 +85,7 @@ void parseSql(FILE * in) {
             assert(len<sizeof(resStr)+1-1); // minus one for one extra byte reserved for the null byte
             resStr[len-1] = c;
             len++;
+            escaped = false;
             break;
         }
     )
