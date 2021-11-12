@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include "buffer.h"
 #include "iteratefile.h"
 
 static char * startStr = "INSERT INTO `pagelinks` VALUES ";
@@ -14,6 +15,10 @@ void parseSql(FILE * in) {
 
     int res = 0;
     char resStr[256];
+    char prevStr[256];
+    int link = 0;
+
+    struct buffer links = bufferCreate();
     iterateFile(in, c,
         if (!started) {
             if (c==startStr[len]) {
@@ -51,7 +56,9 @@ void parseSql(FILE * in) {
             if (c>='0'&&c<='9') {
                res = res*10 + (c-'0');
             } else if (c==(i==3 ? ')' : ',' )) {
-                printf("value[%d] = %d\n", i, res);
+                if (i==0) {
+                    link = res;
+                }
                 i++;
                 res = 0;
                 len = 0;
@@ -82,7 +89,16 @@ void parseSql(FILE * in) {
             }
             if (c=='\''&&!escaped) {
                 resStr[len-1] = 0;
-                printf("value[%d] = '%s'\n", i, resStr);
+                if (strcmp(prevStr, resStr)) {
+                    printf("title = '%s'\n", prevStr);
+                    for (int i=0;i<links.used/sizeof(int);i++) {
+                        printf("%d\n", ((int *)links.content)[i]);
+                    }
+                    links.used = 0;
+                    static_assert(sizeof(prevStr)>=sizeof(resStr), "");
+                    strcpy(prevStr, resStr);
+                }
+                *(int *) bufferAdd(&links, sizeof(int)) = link;
                 len = -1;
                 break;
             }

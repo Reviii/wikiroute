@@ -8,6 +8,9 @@ extractlinks: extractlinks.o printlinks.o
 parselinks: parselinks.o buffer.o
 	$(CC) $^ $(CFLAGS) -o $@
 
+parsesql: parsesql.o buffer.o
+	$(CC) $^ $(CFLAGS) -o $@
+
 explore: explore.o buffer.o mapfile.o nodeutils.o
 	$(CC) $^ $(CFLAGS) -o $@
 
