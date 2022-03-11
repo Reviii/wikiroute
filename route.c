@@ -62,9 +62,11 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
                 }
                 node->dist_a = distA;
                 if (match) continue;
-                for (size_t j=0;j<node->forward_length;j++) {
-                    *(nodeRef *)bufferAdd(&New, sizeof(nodeRef)) = node->references[j];
-                }
+                memcpy(
+                    __builtin_assume_aligned(bufferAdd(&New, node->forward_length*sizeof(nodeRef)), sizeof(nodeRef)),
+                    __builtin_assume_aligned(node->references, sizeof(nodeRef)),
+                    node->forward_length*sizeof(nodeRef)
+                );
             }
             distA++;
             tmp = A;
@@ -87,9 +89,11 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
                 }
                 node->dist_b = distB;
                 if (match) continue;
-                for (size_t j=0;j<node->backward_length;j++) {
-                    *(nodeRef *)bufferAdd(&New, sizeof(nodeRef)) = node->references[j+node->forward_length];
-                }
+                memcpy(
+                    __builtin_assume_aligned(bufferAdd(&New, node->backward_length*sizeof(nodeRef)), sizeof(nodeRef)),
+                    __builtin_assume_aligned(node->references+node->forward_length, sizeof(nodeRef)),
+                    node->backward_length*sizeof(nodeRef)
+                );
             }
             distB++;
             tmp = B;
