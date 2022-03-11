@@ -128,12 +128,14 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
         }
         free(matches.content);
         matches = originalA;
-        for (size_t i=0;i<matches.used/sizeof(nodeRef);i++) {
-            struct wikiNode * node = getNode(nodeData, matches.u32content[i]);
-            node->dist_b = distB+1;
+        if (distA==2) {
+            for (size_t i=0;i<matches.used/sizeof(nodeRef);i++) {
+                struct wikiNode * node = getNode(nodeData, matches.u32content[i]);
+                node->dist_b = distB+1;
+            }
+            distA--;
+            distB++;
         }
-        distA--;
-        distB++;
         while (distB>1) {
             struct buffer tmp;
             for (size_t i=0;i<matches.used/sizeof(nodeRef);i++) {
