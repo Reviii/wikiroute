@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <inttypes.h>
+#include <stdlib.h>
 // buffer is an automatically resizing array of chars
 struct buffer {
     union {
