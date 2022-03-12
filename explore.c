@@ -59,7 +59,7 @@ int main(int argc, char ** argv) {
         node = getNode(nodeData, nodeOffset);
         if (node->redirect) printf("Corrupted node\n");
         printf("Offset: %u\n", nodeOffset);
-        printf("Length: %zu\n", sizeof(*node) + (node->forward_length+node->backward_length)*sizeof(node->references[0]));
+        printf("Size: %zu\n", sizeof(*node) + (node->forward_length+node->backward_length)*sizeof(node->references[0]));
         title = nodeOffsetToTitle(titleFile, nodeOffsets, titleOffsets, nodeCount, nodeOffset);
         printf("Title: %s\n", title);
         if (node->forward_length+node->backward_length>500) {
