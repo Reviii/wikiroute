@@ -50,8 +50,14 @@ int main(int argc, char ** argv) {
 
         if (!fgets(search, 256, stdin)) break;
         search[strlen(search)-1] = '\0';
-        nodeOffset = titleToNodeOffset(titleFile, nodeOffsets, titleOffsets, nodeCount, search);
-        if (nodeOffset==(size_t)-1) {
+        if (search[0]==' '&&search[1]=='#') {
+            long long offset = strtoll(search+2, NULL, 0);
+            // don't check whether this is a valid offset
+            nodeOffset = offset;
+        } else {
+            nodeOffset = titleToNodeOffset(titleFile, nodeOffsets, titleOffsets, nodeCount, search);
+        }
+        if (nodeOffset==(nodeRef)-1) {
             printf("Could not find %s\n", search);
             continue;
         }
