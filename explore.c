@@ -15,9 +15,8 @@ int main(int argc, char ** argv) {
     size_t nodeCount = 0;
     FILE * titleFile = NULL;
     size_t titleCount = 0;
-    uint32_t * nodeOffsets = NULL;
+    nodeRef * nodeOffsets = NULL;
     size_t * titleOffsets = NULL;
-    uint32_t nodeOffset = 0;
 
     if (argc<3) {
         fprintf(stderr, "Usage: %s <node file> <title file>\n", argv[0]);
@@ -47,15 +46,24 @@ int main(int argc, char ** argv) {
         char search[256];
         struct wikiNode * node;
         char * title;
+        nodeRef id = -1;
+        nodeRef nodeOffset = -1;
 
         if (!fgets(search, 256, stdin)) break;
         search[strlen(search)-1] = '\0';
-        if (search[0]==' '&&search[1]=='#') {
-            long long offset = strtoll(search+2, NULL, 0);
+        if (search[0]==' '&&(search[1]=='#'||search[1]=='$')) {
+            long long input = strtoll(search+2, NULL, 0);
             // don't check whether this is a valid offset
-            nodeOffset = offset;
+            if (search[1]=='#') {
+                nodeOffset = input;
+                id = nodeOffsetToId(nodeOffsets, nodeCount, nodeOffset);
+            } else if (search[1]=='$') {
+                id = input;
+                nodeOffset = nodeOffsets[id];
+            }
         } else {
-            nodeOffset = titleToNodeOffset(titleFile, nodeOffsets, titleOffsets, nodeCount, search);
+            id = titleToNodeId(titleFile, titleOffsets, nodeCount, search);
+            nodeOffset = nodeOffsets[id];
         }
         if (nodeOffset==(nodeRef)-1) {
             printf("Could not find %s\n", search);
@@ -64,6 +72,7 @@ int main(int argc, char ** argv) {
 
         node = getNode(nodeData, nodeOffset);
         if (node->redirect) printf("Corrupted node\n");
+        if (id!=(nodeRef)-1) printf("Id: %u\n", id);
         printf("Offset: %u\n", nodeOffset);
         printf("Size: %zu\n", sizeof(*node) + (node->forward_length+node->backward_length)*sizeof(node->references[0]));
         title = nodeOffsetToTitle(titleFile, nodeOffsets, titleOffsets, nodeCount, nodeOffset);
