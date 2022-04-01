@@ -47,6 +47,12 @@ char * getTitle(FILE * titles, size_t * titleOffsets, size_t id) {
 }
 
 char * nodeOffsetToTitle(FILE * titles, nodeRef * nodeOffsets, size_t * titleOffsets, size_t nodeCount, nodeRef nodeOffset) {
+    nodeRef id = nodeOffsetToId(nodeOffsets, nodeCount, nodeOffset);
+    if (id==(nodeRef)-1) return NULL;
+    return getTitle(titles, titleOffsets, id);
+}
+
+nodeRef nodeOffsetToId(nodeRef * nodeOffsets, size_t nodeCount, nodeRef nodeOffset) {
     ssize_t first, middle, last;
     first = 0;
     last = nodeCount - 1;
@@ -55,13 +61,13 @@ char * nodeOffsetToTitle(FILE * titles, nodeRef * nodeOffsets, size_t * titleOff
         if (nodeOffset>nodeOffsets[middle]) {
             first = middle+1;
         } else if (nodeOffset==nodeOffsets[middle]) {
-            return getTitle(titles, titleOffsets, middle);
+            return middle;
         } else {
             last = middle-1;
         }
         middle = (first+last)/2;
     }
-    return NULL;
+    return -1;
 }
 
 void normalizeTitle(char * title) {
