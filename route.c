@@ -45,7 +45,8 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
         printf("B: %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)(B.content+i)));
     }
     while (!match) {
-       printf("A:%zu B:%zu\n", A.used/sizeof(nodeRef), B.used/sizeof(nodeRef));
+        printf("A:%zu B:%zu\n", A.used/sizeof(nodeRef), B.used/sizeof(nodeRef));
+        size_t newcount = 0;
         if (shouldChooseSideA(distA, distB, A, B)) {
             nodeRef * content = (nodeRef *)A.content;
             struct buffer tmp;
@@ -60,6 +61,7 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
                     match = true;
                     *(nodeRef *)bufferAdd(&matches, sizeof(nodeRef)) = content[i];
                 }
+                newcount++;
                 node->dist_a = distA;
                 if (match) continue;
                 memcpy(
@@ -87,6 +89,7 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
                     match = true;
                     *(nodeRef *)bufferAdd(&matches, sizeof(nodeRef)) = content[i];
                 }
+                newcount++;
                 node->dist_b = distB;
                 if (match) continue;
                 memcpy(
@@ -101,6 +104,7 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
             New = tmp;
             New.used=0;
         }
+        printf("Checked %zu new articles\n", newcount);
     }
     if (!match) {
         printf("No route found\n");
