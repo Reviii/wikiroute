@@ -72,6 +72,10 @@ void normalizeTitle(char * title) {
 }
 
 nodeRef titleToNodeOffset(FILE * titles, nodeRef * nodeOffsets, size_t * titleOffsets, size_t nodeCount, char * title) {
+    return nodeOffsets[titleToNodeId(titles, titleOffsets, nodeCount, title)];
+}
+
+nodeRef titleToNodeId(FILE * titles, size_t * titleOffsets, size_t nodeCount, char * title) {
     ssize_t first, middle, last;
     first = 0;
     last = nodeCount - 1;
@@ -87,7 +91,7 @@ nodeRef titleToNodeOffset(FILE * titles, nodeRef * nodeOffsets, size_t * titleOf
         if (cmp>0) {
             first = middle+1;
         } else if (cmp==0) {
-            return nodeOffsets[middle];
+            return middle;
         } else {
             last = middle-1;
         }
