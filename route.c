@@ -193,7 +193,7 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
-    nodeData = mapFile(argv[1], O_RDONLY, PROT_READ | PROT_WRITE, MAP_PRIVATE, &nodeDataLength);
+    nodeData = mapFile(argv[1], O_RDONLY, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_POPULATE, &nodeDataLength);
     if (!nodeData) {
         fprintf(stderr, "Failed to mmap node file\n");
         return -1;
