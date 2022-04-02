@@ -92,7 +92,7 @@ processNode(xmlTextReaderPtr reader) {
             if (value) {
                 correctFormat = xmlStrEqual(value, (const xmlChar *) "text/x-wiki");
                 if (!correctFormat) {
-                    fprintf(stderr, "Unexpected format: '%s', expected 'text/x-wiki'\n", value);
+                    //fprintf(stderr, "Unexpected format: '%s', expected 'text/x-wiki'\n", value);
                 }
             }
             state = STATE_REVISION;
