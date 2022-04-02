@@ -33,13 +33,15 @@ static char ** getTitleListFromFile(FILE * f, size_t * titleCount) {
     struct buffer stringBuf = bufferCreate();
     struct buffer offsetBuf = bufferCreate();
     bool inTitle = true;
+    bool firstChar = true;
     size_t* offsets = NULL;
     char ** res = NULL;
 
     *(size_t *)bufferAdd(&offsetBuf, sizeof(size_t)) = stringBuf.used;
     iterateFile(f, c,
         if (inTitle) {
-            *bufferAdd(&stringBuf, sizeof(char)) = uppercaseChar(c);
+            *bufferAdd(&stringBuf, sizeof(char)) = firstChar ? uppercaseChar(c) : c;
+            firstChar = false;
             if (!c) {
                 inTitle = false;
                 *(size_t *)bufferAdd(&offsetBuf, sizeof(size_t)) = stringBuf.used;
@@ -115,12 +117,13 @@ static struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount
     nodes[0] = calloc(sizeof(struct wikiNode), 1);
     iterateFile(f, c,
         if (inLink) {
-            *(bufferAdd(&titleBuf, 1)) = uppercaseChar(c);
+            *(bufferAdd(&titleBuf, 1)) = c;
             if (c=='\0') {
+                titleBuf.content[1] = uppercaseChar(titleBuf.content[1]); // make first char case insensitive
                 nodeRef ref = title2id(id2title, titleCount, titleBuf.content+1); // titleBuf.content+1, becauce the first char needs to be ignored
                 titleBuf.used = 0;
                 if (ref==-1) continue;
-                if (titleBuf.content[0]==uppercaseChar('r')&&!nodes[id]->redirect) nodes[id]->redirect = nodes[id]->forward_length+1;
+                if (titleBuf.content[0]=='r'&&!nodes[id]->redirect) nodes[id]->redirect = nodes[id]->forward_length+1;
                 nodes[id] = addReference(nodes[id], ref, false);
             }
             if (c=='\n') {

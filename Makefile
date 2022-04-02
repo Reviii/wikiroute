@@ -1,5 +1,5 @@
 CFLAGS = -O3 -Wall
-ALL = extractlinks parselinks explore route parsesql
+ALL = extractlinks presort parselinks explore route parsesql
 all: $(ALL)
 
 extractlinks: extractlinks.o printlinks.o
@@ -23,7 +23,7 @@ route: route.o buffer.o mapfile.o nodeutils.o
 	$(CC) -c $< $(CFLAGS) -o $@
 
 links.txt: wikidump.bz2 extractlinks
-	bzcat wikidump.bz2 | ./extractlinks - | LC_ALL=C sort -f >links.txt
+	pv wikidump.bz2 | bzcat | ./extractlinks - | ./presort | LC_ALL=C sort | cut -b 2- >links.txt
 
 nodes.bin: links.txt parselinks
 	./parselinks links.txt nodes.bin titles.txt

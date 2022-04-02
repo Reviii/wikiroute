@@ -71,8 +71,8 @@ nodeRef nodeOffsetToId(nodeRef * nodeOffsets, size_t nodeCount, nodeRef nodeOffs
 }
 
 void normalizeTitle(char * title) {
+    if (*title>='a'&&*title<='z') *title -= 32;
     for (;*title;title++) {
-        if (*title>='a'&&*title<='z') *title -= 32;
         if (*title=='_') *title = ' ';
     }
 }
