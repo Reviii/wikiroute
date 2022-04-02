@@ -57,6 +57,7 @@ static char ** getTitleListFromFile(FILE * f, size_t * titleCount) {
     res = malloc(offsetBuf.used/sizeof(offsets[0])*sizeof(char *));
     for (size_t i=0;i<offsetBuf.used/sizeof(offsets[0])-1;i++) {
         res[i] = stringBuf.content + offsets[i];
+        if (i>0&&strcmp(res[i-1], res[i])==0) fprintf(stderr, "Warning: duplicate title at index %zu\n", i);
     }
     res[offsetBuf.used/sizeof(offsets[0])-1] = NULL;
     *titleCount = offsetBuf.used/sizeof(offsets[0])-1;
