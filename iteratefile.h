@@ -1,4 +1,4 @@
-#define ITERATEFILEBUFSIZE 1024
+#define ITERATEFILEBUFSIZE 65536
 #define iterateFile(FILE, VARNAME, CODE) \
 if (1) {\
     char iterateFileBuf[ITERATEFILEBUFSIZE];\
