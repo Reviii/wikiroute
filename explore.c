@@ -63,7 +63,11 @@ int main(int argc, char ** argv) {
             }
         } else {
             id = titleToNodeId(titleFile, titleOffsets, nodeCount, search);
-            nodeOffset = nodeOffsets[id];
+            if (id==-1) {
+                nodeOffset = -1;
+            } else {
+                nodeOffset = nodeOffsets[id];
+            }
         }
         if (nodeOffset==(nodeRef)-1) {
             printf("Could not find %s\n", search);
