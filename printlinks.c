@@ -22,7 +22,7 @@ static const char * langParts[] = {
 "DOORVERWIJZING"};
 
 void printlinks(const char * wikiText, size_t length) {
-    enum State {STATE_TEXT, STATE_HASH, STATE_R_EN, STATE_R_NL, STATE_REDIRECT, STATE_ALMOSTLINK, STATE_LINK};
+    enum State {STATE_TEXT, STATE_HASH, STATE_R_EN, STATE_R_NL, STATE_REDIRECT, STATE_ALMOSTLINK, STATE_LINKSTART, STATE_LINK};
     enum State state = STATE_TEXT;
     bool redirect = false;
     const char * link = NULL;
@@ -73,10 +73,22 @@ void printlinks(const char * wikiText, size_t length) {
                 state = STATE_TEXT;
                 break;
             }
-            state = STATE_LINK;
+            state = STATE_LINKSTART;
             link = wikiText+i+1;
             correctChars = 0;
             break;
+        case STATE_LINKSTART:
+            if (c==' '||c=='[') {
+                link++;
+                break;
+            } else if (c=='#') {
+                redirect = false;
+                state = STATE_TEXT;
+                break;
+            } else {
+                state = STATE_LINK;
+            }
+            /* fall through */
         case STATE_LINK:
             if (c==']'||c=='|') {
                 printlink(link, correctChars, redirect);
