@@ -10,7 +10,7 @@ static void printlink(const char * link, int length, bool redirect) {
     for (int i=0;i<length;i++) {
         if (link[i]=='_') {
             putchar(' ');
-        } else if (link[i]!='\n'&&link[i]!='\0') {
+        } else {
             putchar(link[i]);
         }
     }
@@ -96,7 +96,7 @@ void printlinks(const char * wikiText, size_t length) {
                 state = STATE_TEXT;
                 break;
             }
-            if (c==':') {
+            if (c==':'||c=='\n'||c=='\0') {
                 state = STATE_TEXT;
                 break;
             }
