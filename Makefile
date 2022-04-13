@@ -1,4 +1,4 @@
-CFLAGS = -O3 -Wall
+CFLAGS = -O3 -Wall -Wextra -flto
 ALL = extractlinks presort parselinks explore route parsesql
 all: $(ALL)
 

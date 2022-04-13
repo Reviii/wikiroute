@@ -44,6 +44,8 @@ static char ** getTitleListFromFile(FILE * f, size_t * titleCount) {
             firstChar = false;
             if (!c) {
                 inTitle = false;
+                size_t len = stringBuf.used-1-*(size_t *)(offsetBuf.content+offsetBuf.used-sizeof(size_t));
+                for (;len<2;len++) *bufferAdd(&stringBuf, sizeof(char)) = '\0'; // reduce edge cases in title2id
                 *(size_t *)bufferAdd(&offsetBuf, sizeof(size_t)) = stringBuf.used;
             }
         } else {
@@ -68,22 +70,65 @@ static char ** getTitleListFromFile(FILE * f, size_t * titleCount) {
     return res;
 }
 
-static size_t title2id(char ** id2title, size_t titleCount, char * title) {
+static size_t titleHash(char const * title) {
+    unsigned char const * t = (unsigned char const *) title;
+    // note that an empty string can give any result between 0 and 255
+    // and that there must at least be 2 allocated bytes for the title
+    // in order to prevent UB
+    return t[0]*256+t[1];
+}
+
+static size_t * getTitleMap(char ** id2title, size_t titleCount) {
+    size_t * map = malloc((256*256+1)*sizeof(size_t));
+    size_t i = 0;
+    for (size_t id=0;id<titleCount;id++) {
+        for (;titleHash(id2title[id])>=i;i++) {
+            assert(i<256*256);
+            map[i] = id;
+        }
+    }
+    for (;i<=256*256;i++) {
+        map[i] = titleCount;
+    }
+    for (size_t j=0;j<256;j++) {
+        assert(map[j]==0); // make sure there are no empty strings in the title map
+    }
+    return map;
+}
+
+static size_t title2id(char ** id2title, size_t * map, char * title) {
     ssize_t first, last, middle;
-    first = 0;
-    last = titleCount - 1;
+    size_t correct = 2;
+    first = map[titleHash(title)];
+    last = map[titleHash(title)+1] - 1;
     middle = (first+last)/2;
+    for (size_t i=0;i<correct;i++) { // skip the first correct characters, unless the title is too short
+        if (!*title) {
+            correct = i;
+            break;
+        }
+        title++;
+    }
     while (first <= last) {
-//        fprintf(stderr, "Comparing to id %d/%d\n", middle, titleCount);
-        int cmp = strcmp(id2title[middle], title);
+
+        // inlined version of int cmp = strcmp(id2title[middle]+correct, title);
+        unsigned char * stra = (unsigned char *)id2title[middle]+correct; // edge case (len<2) is handled in getTitleListFromFile
+        unsigned char * strb = (unsigned char *)title;
+        while (*stra==*strb&&*stra) {
+            stra++;
+            strb++;
+        }
+        int cmp = *stra-*strb;
+
         if (cmp<0) {
-            first = middle+1; // overflow?
+            first = middle+1;
         } else if (cmp==0) {
             return middle;
         } else {
             last = middle-1;
         }
         middle = (first+last)/2;
+
     }
     return -1;
 }
@@ -108,7 +153,7 @@ static struct wikiNode * addReference(struct wikiNode * node, nodeRef ref, bool 
     return res;
 }
 
-static struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount) {
+static struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount, size_t * titleMap) {
     int id = 0;
     bool inLink = false;
     struct buffer titleBuf = bufferCreate();
@@ -120,7 +165,7 @@ static struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount
             *(bufferAdd(&titleBuf, 1)) = c;
             if (c=='\0') {
                 titleBuf.content[1] = uppercaseChar(titleBuf.content[1]); // make first char case insensitive
-                nodeRef ref = title2id(id2title, titleCount, titleBuf.content+1); // titleBuf.content+1, becauce the first char needs to be ignored
+                nodeRef ref = title2id(id2title, titleMap, titleBuf.content+1); // titleBuf.content+1, becauce the first char needs to be ignored
                 titleBuf.used = 0;
                 if (ref==-1) continue;
                 if (titleBuf.content[0]=='r'&&!nodes[id]->redirect) nodes[id]->redirect = nodes[id]->forward_length+1;
@@ -275,6 +320,7 @@ int main(int argc, char **argv) {
     char ** id2title;
     size_t titleCount;
     struct wikiNode ** id2node;
+    size_t * titleMap;
     nodeRef * id2nodeOffset;
     //char search[256];
     if (argc<4) {
@@ -288,7 +334,10 @@ int main(int argc, char **argv) {
     id2title = getTitleListFromFile(in, &titleCount);
     fprintf(stderr, "%zu pages have been given an unique id\n", titleCount);
 
-    id2node = getNodes(in, id2title, titleCount);
+    titleMap = getTitleMap(id2title, titleCount);
+    fprintf(stderr, "Created title mapping\n");
+
+    id2node = getNodes(in, id2title, titleCount, titleMap);
     fprintf(stderr, "Created nodes\n");
     free(id2title[0]);
     free(id2title);
