@@ -1,5 +1,5 @@
 CFLAGS = -O3 -Wall -Wextra -flto
-ALL = extractlinks presort removeduplicates parselinks explore route parsesql
+ALL = extractlinks printlinks-test removeduplicates presort parselinks explore route parsesql
 all: $(ALL)
 
 extractlinks: extractlinks.o printlinks.o
@@ -20,12 +20,15 @@ route: route.o buffer.o mapfile.o nodeutils.o
 removeduplicates: removeduplicates.o buffer.o
 	$(CC) $^ $(CFLAGS) -o $@
 
+printlinks-test: printlinks-test.o buffer.o printlinks.o
+	$(CC) $^ $(CFLAGS) -o $@
+
 %.o: %.c %.h
 	$(CC) -c $< $(CFLAGS) -o $@
 %.o: %.c
 	$(CC) -c $< $(CFLAGS) -o $@
 
-links.txt: wikidump.bz2 extractlinks
+links.txt: wikidump.bz2 extractlinks presort removeduplicates
 	@echo Note: The progress bar only shows the progress of the first step
 	pv wikidump.bz2 | bzcat | ./extractlinks - | ./presort | LC_ALL=C sort | cut -b 2- | ./removeduplicates >links.txt
 
