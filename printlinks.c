@@ -1,15 +1,35 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdbool.h>
+
+static char hex2int(char c) {
+    if (c>='0'&&c<='9') return c-'0'+1;
+    if (c>='A'&&c<='F') return c-'A'+11;
+    if (c>='a'&&c<='f') return c-'a'+11;
+    return 0;
+}
+static char hexLookup[256];
+static void __attribute__((constructor)) createHexLookup() {
+    for (int i=0;i<256;i++) {
+        hexLookup[i] = hex2int(i);
+    }
+}
+
+
 static void printlink(const char * link, int length, bool redirect) {
     if (redirect) {
         putchar('r');
     } else {
         putchar('l');
     }
+    const unsigned char * ulink = (const unsigned char *) link;
     for (int i=0;i<length;i++) {
         if (link[i]=='_') {
             putchar(' ');
+        } else if (link[i]=='%'&&i+2<length&&hexLookup[ulink[i+1]]&&hexLookup[ulink[i+2]]) {
+            int c = (hexLookup[ulink[i+1]]*16+hexLookup[ulink[i+2]]-17);
+            i+=2;
+            if (c>0&&c!='\0'&&c!='\n') putchar(c);
         } else {
             putchar(link[i]);
         }
@@ -53,6 +73,7 @@ void printlinks(const char * wikiText, size_t length) {
                 correctChars = 1;
             } else {
                 state = STATE_TEXT;
+                i--;
             }
             break;
         case STATE_R_EN:
@@ -65,12 +86,14 @@ void printlinks(const char * wikiText, size_t length) {
                 }
             } else {
                 state = STATE_TEXT;
+                i--;
             }
             break;
         case STATE_ALMOSTLINK:
             if (c!='[') {
                 redirect = false;
                 state = STATE_TEXT;
+                i--;
                 break;
             }
             state = STATE_LINKSTART;
@@ -90,7 +113,8 @@ void printlinks(const char * wikiText, size_t length) {
             }
             /* fall through */
         case STATE_LINK:
-            if (c==']'||c=='|') {
+            if (c==']'||c=='|'||c=='#') {
+                while (link[correctChars-1]==' ') correctChars--;
                 printlink(link, correctChars, redirect);
                 redirect = false;
                 state = STATE_TEXT;
