@@ -81,23 +81,28 @@ int main(int argc, char ** argv) {
         printf("Size: %zu\n", sizeof(*node) + (node->forward_length+node->backward_length)*sizeof(node->references[0]));
         title = nodeOffsetToTitle(titleFile, nodeOffsets, titleOffsets, nodeCount, nodeOffset);
         printf("Title: %s\n", title);
-        if (node->forward_length+node->backward_length>500) {
-            printf("Links not shown\n");
-        } else {
-            printf("Links to:\n");
+        printf("Links to %zu pages", (size_t) node->forward_length);
+        if (node->forward_length<=500) {
+            printf(":\n");
             for (size_t i=0;i < node->forward_length;i++) {
                 uint32_t offset = node->references[i];
                 char * title = nodeOffsetToTitle(titleFile, nodeOffsets, titleOffsets, nodeCount, offset);
                 printf("%u %s\n", offset, title);
                 if (title) free(title);
             }
-            printf("\nLinked by:\n");
+        }
+        putchar('\n');
+        printf("Linked by %zu pages", (size_t) node->backward_length);
+        if (node->backward_length<=500) {
+            printf(":\n");
             for (size_t i=0;i < node->backward_length;i++) {
                 uint32_t offset = node->references[i+node->forward_length];
                 char * title = nodeOffsetToTitle(titleFile, nodeOffsets, titleOffsets, nodeCount, offset);
                 printf("%u %s\n", offset, title);
                 if (title) free(title);
             }
+        } else {
+            putchar('\n');
         }
         putchar('\n');
     }
