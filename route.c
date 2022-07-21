@@ -45,7 +45,9 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
         printf("B: %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)(B.content+i)));
     }
     while (!match) {
+#ifdef STATS
         printf("A:%zu B:%zu\n", A.used/sizeof(nodeRef), B.used/sizeof(nodeRef));
+#endif
         size_t newcount = 0;
         if (shouldChooseSideA(distA, distB, A, B)) {
             nodeRef * content = (nodeRef *)A.content;
@@ -57,7 +59,6 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
                     continue;
                 }
                 if (node->dist_b) {
-                    freePrint("Match @ %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, content[i]));
                     match = true;
                     *(nodeRef *)bufferAdd(&matches, sizeof(nodeRef)) = content[i];
                 }
@@ -85,7 +86,6 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
                     continue;
                 }
                 if (node->dist_a) {
-                    freePrint("Match @ %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, content[i]));
                     match = true;
                     *(nodeRef *)bufferAdd(&matches, sizeof(nodeRef)) = content[i];
                 }
@@ -238,7 +238,7 @@ int main(int argc, char ** argv) {
                 break;
             }
             res = titleToNodeOffset(titleFile, nodeOffsets, titleOffsets, nodeCount, str+2);
-            if (res==-1) {
+            if (res==(nodeRef)-1) {
                 fprintf(stderr, "Could not find %s\n", str+2);
                 break;
             }
