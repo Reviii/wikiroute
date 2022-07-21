@@ -46,10 +46,84 @@ char * getTitle(FILE * titles, size_t * titleOffsets, size_t id) {
     return title;
 }
 
+char * getJSONTitle(FILE * titles, size_t * titleOffsets, size_t id) {
+    size_t titleLength = titleOffsets[id+1]-titleOffsets[id];
+    char * title = malloc(titleLength+2);
+    fseek(titles, titleOffsets[id], SEEK_SET);
+    fread(title+1, titleLength-1, 1, titles);
+    size_t toEscape = 0;
+    for (size_t i=0;i<titleLength-1;i++) {
+        switch (title[i+1]) {
+        case '\"':
+        case '\\':
+        case '\b':
+        case '\f':
+        case '\n':
+        case '\r':
+        case '\t':
+            toEscape++;
+        }
+    }
+    if (toEscape==0) {
+        title[0] = '\"';
+        title[titleLength] = '\"';
+        title[titleLength+1] = '\0';
+        return title;
+    }
+    char * escapedTitle = malloc(titleLength+toEscape+2);
+    char * ret = escapedTitle;
+    *escapedTitle++ = '\"';
+    for (size_t i=0;i<titleLength-1;i++) {
+        switch (title[i+1]) {
+        case '\"':
+        case '\\':
+            *escapedTitle++ = '\\';
+            *escapedTitle++ = title[i+1];
+            break;
+        case '\b':
+            *escapedTitle++ = '\\';
+            *escapedTitle++ = 'b';
+            break;
+        case '\f':
+            *escapedTitle++ = '\\';
+            *escapedTitle++ = 'f';
+            break;
+        case '\n':
+            *escapedTitle++ = '\\';
+            *escapedTitle++ = 'n';
+            break;
+        case '\r':
+            *escapedTitle++ = '\\';
+            *escapedTitle++ = 'r';
+            break;
+        case '\t':
+            *escapedTitle++ = '\\';
+            *escapedTitle++ = 't';
+            break;
+        default:
+            *escapedTitle++ = title[i+1];
+        }
+    }
+    *escapedTitle++ = '\"';
+    *escapedTitle++ = '\0';
+    assert(escapedTitle-ret==titleLength+toEscape+2);
+    return ret;
+}
+
 char * nodeOffsetToTitle(FILE * titles, nodeRef * nodeOffsets, size_t * titleOffsets, size_t nodeCount, nodeRef nodeOffset) {
     nodeRef id = nodeOffsetToId(nodeOffsets, nodeCount, nodeOffset);
     if (id==(nodeRef)-1) return NULL;
     return getTitle(titles, titleOffsets, id);
+}
+
+char * nodeOffsetToJSONTitle(FILE * titles, nodeRef * nodeOffsets, size_t * titleOffsets, size_t nodeCount, nodeRef nodeOffset) {
+    nodeRef id = nodeOffsetToId(nodeOffsets, nodeCount, nodeOffset);
+    if (id==(nodeRef)-1) {
+        char * ret = malloc(sizeof("null"));
+        strcpy(ret, "null");
+        return ret;
+    }
+    return getJSONTitle(titles, titleOffsets, id);
 }
 
 nodeRef nodeOffsetToId(nodeRef * nodeOffsets, size_t nodeCount, nodeRef nodeOffset) {

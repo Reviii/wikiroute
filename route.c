@@ -9,6 +9,8 @@
 #include "nodetypes.h"
 #include "nodeutils.h"
 
+//#define JSON
+
 static void cleanNodes(char * nodeData, nodeRef * nodeOffsets, size_t nodeCount) {
     for (size_t i=0;i<nodeCount;i++) {
         struct wikiNode * node = getNode(nodeData, nodeOffsets[i]);
@@ -38,12 +40,26 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
     struct buffer originalA = bufferDup(A);
     A = bufferDup(A);
     B = bufferDup(B);
+    #ifdef JSON
+    printf("{\"sources\":[");
+    if (A.used) freePrint("%s", nodeOffsetToJSONTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)A.content));
+    for (size_t i=sizeof(nodeRef);i<A.used;i+=sizeof(nodeRef)) {
+        freePrint(",%s", nodeOffsetToJSONTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)(A.content+i)));
+    }
+    printf("],\"destinations\":[");
+    if (B.used) freePrint("%s", nodeOffsetToJSONTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)B.content));
+    for (size_t i=sizeof(nodeRef);i<B.used;i+=sizeof(nodeRef)) {
+        freePrint(",%s", nodeOffsetToJSONTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)(B.content+i)));
+    }
+    printf("],");
+    #else
     for (size_t i=0;i<A.used;i+=sizeof(nodeRef)) {
         printf("A: %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)(A.content+i)));
     }
     for (size_t i=0;i<B.used;i+=sizeof(nodeRef)) {
         printf("B: %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)(B.content+i)));
     }
+    #endif
     while (!match) {
 #ifdef STATS
         printf("A:%zu B:%zu\n", A.used/sizeof(nodeRef), B.used/sizeof(nodeRef));
@@ -104,15 +120,25 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
             New = tmp;
             New.used=0;
         }
+#ifdef STATS
         printf("Checked %zu new articles\n", newcount);
+#endif
     }
     if (!match) {
+        #ifdef JSON
+        printf("\"route\":null}\n");
+        #else
         printf("No route found\n");
+        #endif
     } else {
         // distA and distB are for the next layer, but we want the one for the matches layer
         distA--;
         distB--;
-        printf("%zu matches found\ndistA: %zu, distB: %zu\n", matches.used/4, distA, distB);
+        #ifdef JSON
+        printf("\"dist\":{\"a\":%zu,\"b\":%zu},\"route\":{", distA-1, distB-1);
+        #else
+        printf("distA: %zu, distB: %zu\n", distA, distB);
+        #endif
         assert(!New.used);
         while (distA>2) {
             struct buffer tmp;
@@ -144,17 +170,36 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
             distA--;
             distB++;
         }
+        #ifdef JSON
+        bool firstIteration = true;
+        #endif
         while (distB>1) {
             struct buffer tmp;
+            #ifdef JSON
+            if (!firstIteration) printf("], ");
+            firstIteration = false;
+            #endif
             for (size_t i=0;i<matches.used/sizeof(nodeRef);i++) {
                 struct wikiNode * node = getNode(nodeData, matches.u32content[i]);
                 if (!node->dist_b) continue;
                 node->dist_b = 0;
+                #ifdef JSON
+                if (i>0) printf("],");
+                freePrint("%s:[", nodeOffsetToJSONTitle(titles, nodeOffsets, titleOffsets, nodeCount, matches.u32content[i]));
+                bool first = true;
+                #else
                 freePrint("%s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, matches.u32content[i]));
+                #endif
                 for (size_t j=0;j<node->forward_length;j++) {
                     struct wikiNode * target = getNode(nodeData, node->references[j]);
                     if (target->dist_b==distB-1) {
+                        #ifdef JSON
+                        if (!first) putchar(',');
+                        first = false;
+                        freePrint("%s", nodeOffsetToJSONTitle(titles, nodeOffsets, titleOffsets, nodeCount, (char *)target-nodeData));
+                        #else
                         freePrint("\t%s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, (char *)target-nodeData));
+                        #endif
                         *(nodeRef *)bufferAdd(&New, sizeof(nodeRef)) = (char *)target-nodeData;
                     }
                 }
@@ -166,9 +211,16 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
             matches = New;
             New = tmp;
             New.used = 0;
+            #ifdef JSON
+            #else
             putchar('\n');
+            #endif
         }
+        #ifdef JSON
+        printf("]}}\n");
+        #else
         putchar('\n');
+        #endif
     }
 
 
