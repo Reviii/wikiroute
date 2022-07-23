@@ -9,7 +9,7 @@
 #include "nodetypes.h"
 #include "nodeutils.h"
 
-//#define JSON
+#define JSON
 
 static void cleanNodes(char * nodeData, nodeRef * nodeOffsets, size_t nodeCount) {
     for (size_t i=0;i<nodeCount;i++) {
@@ -239,6 +239,9 @@ int main(int argc, char ** argv) {
     size_t titleCount = 0;
     nodeRef * nodeOffsets = NULL;
     size_t * titleOffsets = NULL;
+
+    setvbuf(stdin, NULL, _IOLBF, BUFSIZ);
+    setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
 
     if (argc<3) {
         fprintf(stderr, "Usage: %s <node file> <title file>\n", argv[0]);

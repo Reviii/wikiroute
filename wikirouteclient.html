@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<body>
+Source:<input id="source"><br>
+Destination:<input id="dest"><button onclick="handleInput()">Route</button><br>
+<script>
+let err = document.createElement("pre")
+err.style.color = "red"
+document.body.appendChild(err)
+let pre = document.createElement("pre")
+document.body.appendChild(pre)
+
+function handleInput() { 
+    getRoute(document.getElementById('source').value, document.getElementById('dest').value).catch(e=>err.innerText=e.message)
+}
+document.body.onkeydown = e => {if(e.key==="Enter") handleInput()}
+
+function firstUp(str) {
+    if (str==undefined) return undefined
+    return str.slice(0,1).toUpperCase()+str.slice(1)
+}
+
+async function getRoute(source, dest) {
+    if (window.control) {
+        if (confirm("Abort current request?")) {
+            window.control.abort()
+            pre.innerText=""
+            window.control=undefined
+        }
+        return
+    }
+    if (window.route&&firstUp(source)===firstUp(window.route.sources[0])&&firstUp(dest)===firstUp(window.route.destinations[0])) {
+       window.route=JSON.parse(oroute)
+       draw(window.route)
+       return
+    }
+    pre.innerText = "Waiting for response"
+    err.innerText = ""
+    window.control = new AbortController()
+    let res;
+    try {
+        res = await fetch("wikiroute?source="+encodeURIComponent(source)+"&dest="+encodeURIComponent(dest), {signal:control.signal})
+    } finally {
+        window.control = undefined
+        pre.innerText = ""
+    }
+    let route = await res.json()
+    if (route.error) throw new Error(route.error)
+    if (route.sources.length===0) {
+        err.innerText = "Source '"+source+"' not found\n"
+    }
+    if (route.destinations.length===0) {
+        err.innerText += "Destination '"+dest+"' not found\n"
+    }
+    route.forward = route.route
+    delete route.route
+    addBackward(route)
+    window.oroute = JSON.stringify(route)
+    window.route = route
+    draw(route)
+}
+
+function addBackward(route) {
+    route.backward = {}
+    for (let i in route.forward) {
+        let forward = route.forward[i]
+        for (let j=0;j<forward.length;j++) {
+            let it = forward[j]
+            if (!route.backward[it]) route.backward[it]=[]
+            route.backward[it].push(i)
+        }
+    }
+}
+
+function draw(route) {
+    let sources = new Set(route.sources);
+    let txtOut = ""
+    pre.innerHTML = ""
+    if (route.forward===null) {
+        pre.innerText += "No route found"
+        return
+    }
+    while (sources.size) {
+        let dests = new Set();
+        sources.forEach(source => {
+            let dest = route.forward[source]
+            if (!dest) return;
+            dest = new Set(dest)
+            let a = document.createElement("div")
+            a.onclick = function() { goVia(route, this.innerText) }
+            a.innerText = source
+            pre.appendChild(a);
+            dest.forEach(dest => {
+                let b = document.createElement("div")
+                b.onclick = function() { goVia(route, this.innerText.slice(1)) }
+                b.innerText = "\t"+dest
+                pre.appendChild(b)
+            })
+            dest.forEach(a=>dests.add(a))
+        })
+        sources = dests
+        pre.appendChild(document.createElement("br"))
+    }
+    return txtOut
+}
+
+function handleRemoval(route, thing) {
+    if (route.forward[thing].length>0) return;
+    delete route.forward[thing]
+    let parents = route.backward[thing]
+    if (parents===undefined) return
+    for (let i=0;i<parents.length;i++) {
+        if (route.forward[parents[i]]===undefined) continue;
+        route.forward[parents[i]] = route.forward[parents[i]].filter(a=>a!==thing)
+        if (route.forward[parents[i]].length===0) handleRemoval(route, parents[i])
+    }
+    delete route.backward[thing]
+}
+
+function goVia(route, thing) {
+    let sources
+    let dests = new Set(route.sources);
+    while (!dests.has(thing)&&dests.size) {
+        sources = dests
+        dests = new Set();
+        sources.forEach(source => {
+            let dest = route.forward[source]
+            if (!dest) {console.log("Source "+source+" no longer exists");return;}
+            dest.forEach(dest=>dests.add(dest))
+        })
+    }
+    if (dests.size===0) throw new Error("Unable to find "+thing)
+    if (sources===undefined) {
+        route.sources = [thing]
+    } else {
+        sources.forEach(source => {
+            if (route.forward[source]===undefined) {console.log("Source "+source+" no longer exists (2)");return}
+            if (route.forward[source].includes(thing)) {
+                route.forward[source] = [thing]
+            } else {
+                route.forward[source] = []
+                handleRemoval(route, source)
+            }
+        })
+    }
+    addBackward(route)
+    return draw(route)
+}
+</script>
+</body>
+</html>
