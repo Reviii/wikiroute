@@ -14,6 +14,7 @@
 static void cleanNodes(char * nodeData, nodeRef * nodeOffsets, size_t nodeCount) {
     for (size_t i=0;i<nodeCount;i++) {
         struct wikiNode * node = getNode(nodeData, nodeOffsets[i]);
+        if (!node->redirect) continue;
         node->dist_a = 0;
         node->dist_b = 0;
     }
@@ -21,6 +22,10 @@ static void cleanNodes(char * nodeData, nodeRef * nodeOffsets, size_t nodeCount)
 
 static void freePrint(char * format, char * str) {
     printf(format, str);
+    free(str);
+}
+static void freePrinto(char * format, char * str) {
+    printf(format, str+1);
     free(str);
 }
 
@@ -42,16 +47,17 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
     B = bufferDup(B);
     #ifdef JSON
     printf("{\"sources\":[");
-    if (A.used) freePrint("%s", nodeOffsetToJSONTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)A.content));
+    if (A.used)
+        freePrinto("%s", nodeOffsetToJSONTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)A.content));
     for (size_t i=sizeof(nodeRef);i<A.used;i+=sizeof(nodeRef)) {
-        freePrint(",%s", nodeOffsetToJSONTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)(A.content+i)));
+        freePrint("%s", nodeOffsetToJSONTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)(A.content+i)));
     }
     printf("],\"destinations\":[");
-    if (B.used) freePrint("%s", nodeOffsetToJSONTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)B.content));
+    if (B.used)
+        freePrinto("%s", nodeOffsetToJSONTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)B.content));
     for (size_t i=sizeof(nodeRef);i<B.used;i+=sizeof(nodeRef)) {
-        freePrint(",%s", nodeOffsetToJSONTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)(B.content+i)));
+        freePrint("%s", nodeOffsetToJSONTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)(B.content+i)));
     }
-    printf("],");
     #else
     for (size_t i=0;i<A.used;i+=sizeof(nodeRef)) {
         printf("A: %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)(A.content+i)));
@@ -126,7 +132,7 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
     }
     if (!match) {
         #ifdef JSON
-        printf("\"route\":null}\n");
+        printf("],\"route\":null}\n");
         #else
         printf("No route found\n");
         #endif
@@ -135,7 +141,7 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
         distA--;
         distB--;
         #ifdef JSON
-        printf("\"dist\":{\"a\":%zu,\"b\":%zu},\"route\":{", distA-1, distB-1);
+        printf("],\"dist\":{\"a\":%zu,\"b\":%zu},\"route\":{", distA-1, distB-1);
         #else
         printf("distA: %zu, distB: %zu\n", distA, distB);
         #endif
@@ -185,7 +191,7 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
                 node->dist_b = 0;
                 #ifdef JSON
                 if (i>0) printf("],");
-                freePrint("%s:[", nodeOffsetToJSONTitle(titles, nodeOffsets, titleOffsets, nodeCount, matches.u32content[i]));
+                freePrinto("%s:[", nodeOffsetToJSONTitle(titles, nodeOffsets, titleOffsets, nodeCount, matches.u32content[i]));
                 bool first = true;
                 #else
                 freePrint("%s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, matches.u32content[i]));
@@ -194,9 +200,10 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
                     struct wikiNode * target = getNode(nodeData, node->references[j]);
                     if (target->dist_b==distB-1) {
                         #ifdef JSON
-                        if (!first) putchar(',');
+                        char * title = nodeOffsetToJSONTitle(titles, nodeOffsets, titleOffsets, nodeCount, (char *)target-nodeData);
+                        printf("%s", title+first);
                         first = false;
-                        freePrint("%s", nodeOffsetToJSONTitle(titles, nodeOffsets, titleOffsets, nodeCount, (char *)target-nodeData));
+                        free(title);
                         #else
                         freePrint("\t%s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, (char *)target-nodeData));
                         #endif

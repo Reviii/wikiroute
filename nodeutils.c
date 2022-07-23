@@ -48,12 +48,12 @@ char * getTitle(FILE * titles, size_t * titleOffsets, size_t id) {
 
 char * getJSONTitle(FILE * titles, size_t * titleOffsets, size_t id) {
     size_t titleLength = titleOffsets[id+1]-titleOffsets[id];
-    char * title = malloc(titleLength+2);
+    char * title = malloc(titleLength+3); // ,"title"
     fseek(titles, titleOffsets[id], SEEK_SET);
-    fread(title+1, titleLength-1, 1, titles);
+    fread(title+2, titleLength-1, 1, titles);
     size_t toEscape = 0;
     for (size_t i=0;i<titleLength-1;i++) {
-        switch (title[i+1]) {
+        switch (title[i+2]) {
         case '\"':
         case '\\':
         case '\b':
@@ -65,20 +65,22 @@ char * getJSONTitle(FILE * titles, size_t * titleOffsets, size_t id) {
         }
     }
     if (toEscape==0) {
-        title[0] = '\"';
-        title[titleLength] = '\"';
-        title[titleLength+1] = '\0';
+        title[0] = ',';
+        title[1] = '\"';
+        title[titleLength+1] = '\"';
+        title[titleLength+2] = '\0';
         return title;
     }
-    char * escapedTitle = malloc(titleLength+toEscape+2);
+    char * escapedTitle = malloc(titleLength+toEscape+3);
     char * ret = escapedTitle;
+    *escapedTitle++ = ',';
     *escapedTitle++ = '\"';
     for (size_t i=0;i<titleLength-1;i++) {
-        switch (title[i+1]) {
+        switch (title[i+2]) {
         case '\"':
         case '\\':
             *escapedTitle++ = '\\';
-            *escapedTitle++ = title[i+1];
+            *escapedTitle++ = title[i+2];
             break;
         case '\b':
             *escapedTitle++ = '\\';
@@ -101,12 +103,12 @@ char * getJSONTitle(FILE * titles, size_t * titleOffsets, size_t id) {
             *escapedTitle++ = 't';
             break;
         default:
-            *escapedTitle++ = title[i+1];
+            *escapedTitle++ = title[i+2];
         }
     }
     *escapedTitle++ = '\"';
     *escapedTitle++ = '\0';
-    assert(escapedTitle-ret==titleLength+toEscape+2);
+    assert(escapedTitle-ret==titleLength+toEscape+3);
     return ret;
 }
 
