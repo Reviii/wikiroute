@@ -224,7 +224,7 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
             #endif
         }
         #ifdef JSON
-        printf("]}}\n");
+        printf("%s}}\n", distA>1 ? "]":"");
         #else
         putchar('\n');
         #endif
