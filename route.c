@@ -20,6 +20,32 @@ static void cleanNodes(char * nodeData, nodeRef * nodeOffsets, size_t nodeCount)
     }
 }
 
+static void cleanNodesA(char * nodeData, size_t distAMax, struct wikiNode * node) {
+    uint8_t distA = node->dist_a;
+    if (distA<distAMax) {
+        for (size_t i=0;i<node->forward_length;i++) {
+            struct wikiNode * target = getNode(nodeData, node->references[i]);
+            if (target->dist_a==distA+1) cleanNodesA(nodeData, distAMax, target);
+        }
+    }
+    node->dist_a = 0;
+    node->dist_b = 0;
+}
+
+static void cleanNodesB(char * nodeData, size_t distBMax, struct wikiNode * node) {
+    uint8_t distB = node->dist_b;
+    if (distB<distBMax) {
+        size_t len = node->forward_length+node->backward_length;
+        for (size_t i=node->forward_length;i<len;i++) {
+            struct wikiNode * target = getNode(nodeData, node->references[i]);
+            if (!target->dist_b) target->dist_b = distB+1;
+            if (target->dist_b==distB+1) cleanNodesB(nodeData, distBMax, target);
+        }
+    }
+    node->dist_a = 0;
+    node->dist_b = 0;
+}
+
 static void freePrint(char * format, char * str) {
     printf(format, str);
     free(str);
@@ -36,15 +62,15 @@ static bool shouldChooseSideA(int distA, int distB, struct buffer A, struct buff
     return A.used<=B.used;
 }
 
-static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * nodeData, nodeRef * nodeOffsets, size_t * titleOffsets, size_t nodeCount) {
+static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, char * nodeData, nodeRef * nodeOffsets, size_t * titleOffsets, size_t nodeCount) {
     size_t distA =1;
     size_t distB =1;
     bool match = false;
     struct buffer matches = bufferCreate();
     struct buffer New = bufferCreate();
-    struct buffer originalA = bufferDup(A);
-    A = bufferDup(A);
-    B = bufferDup(B);
+    struct buffer originalA = bufferDup(oA);
+    struct buffer A = bufferDup(oA);
+    struct buffer B = bufferDup(oB);
     #ifdef JSON
     printf("{\"sources\":[");
     if (A.used)
@@ -130,6 +156,8 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
         printf("Checked %zu new articles\n", newcount);
 #endif
     }
+    size_t distBMax = distB-1;
+    size_t distAMax = distA-1;
     if (!match) {
         #ifdef JSON
         printf("],\"route\":null}\n");
@@ -151,8 +179,9 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
             for (size_t i=0;i<matches.used/sizeof(nodeRef);i++) {
                 struct wikiNode * node = getNode(nodeData, matches.u32content[i]);
                 assert(node->dist_a==distA);
-                for (size_t j=0;j<node->backward_length;j++) {
-                    struct wikiNode * target = getNode(nodeData, node->references[node->forward_length+j]);
+                size_t len = node->backward_length+node->forward_length;
+                for (size_t j=node->forward_length;j<len;j++) {
+                    struct wikiNode * target = getNode(nodeData, node->references[j]);
                     if (target->dist_a==distA-1) {
                         target->dist_b = distB+1;
                         *(nodeRef *)bufferAdd(&New, sizeof(nodeRef)) = (char *)target-nodeData;
@@ -235,7 +264,16 @@ static void nodeRoute(struct buffer A, struct buffer B, FILE * titles, char * no
     free(B.content);
     free(New.content);
     free(matches.content);
-    cleanNodes(nodeData, nodeOffsets, nodeCount);
+    for (size_t i=0;i<oA.used/sizeof(nodeRef);i++) {
+        cleanNodesA(nodeData, distAMax, getNode(nodeData, oA.u32content[i]));
+    }
+    for (size_t i=0;i<oB.used/sizeof(nodeRef);i++) {
+        cleanNodesB(nodeData, distBMax, getNode(nodeData, oB.u32content[i]));
+    }
+    // in some very complex routes then old cleanNodes function might be faster than
+    // the cleanNodesA and cleanNodesB functions
+    // TODO: use cleanNodes function when that is likely to be the case
+    if (0) cleanNodes(nodeData, nodeOffsets, nodeCount);
 }
 
 int main(int argc, char ** argv) {
@@ -255,7 +293,7 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
-    nodeData = mapFile(argv[1], O_RDONLY, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_POPULATE, &nodeDataLength);
+    nodeData = mapFile(argv[1], O_RDONLY, PROT_READ | PROT_WRITE, MAP_PRIVATE, &nodeDataLength);
     if (!nodeData) {
         fprintf(stderr, "Failed to mmap node file\n");
         return -1;
