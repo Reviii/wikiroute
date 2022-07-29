@@ -1,22 +1,29 @@
 <!DOCTYPE html>
 <html>
+<head><title>wikiroute</title><style>pre > div { width: max-content; } div > div { border: solid 1px; max-width: 30ch; }</style></head>
 <body>
-Source:<input id="source"><br>
-Destination:<input id="dest"><button onclick="handleInput()">Route</button><br>
+<label>Source:<input id="source"></label><button onclick="reverse();this.blur()" tabindex=1><svg width="12" height="12"><polygon points="0 4 6 4 3 0" /><polygon points="2 12 4 12 4 4 2 4" /><polygon points="8 8 10 8 10 0 8 0" /><polygon points="6 8 9 12 12 8" /></svg></button><br>
+<label>Destination:<input id="dest"></label><br>
+<label>Show graph:<input id="showGraph" type="checkbox" onclick="drawGraph(route)"></label><br>
+<button onclick="handleInput()">Route</button>
 <script>
 let err = document.createElement("pre")
 err.style.color = "red"
 document.body.appendChild(err)
+let graph = document.createElement("div")
+graph.style.display = "flex"
+document.body.appendChild(graph)
+addEventListener("resize", ()=>drawGraph(window.route))
 let pre = document.createElement("pre")
 document.body.appendChild(pre)
 
 function handleInput() { 
     getRoute(document.getElementById('source').value, document.getElementById('dest').value).catch(e=>err.innerText=e.message)
 }
-document.body.onkeydown = e => {if(e.key==="Enter") handleInput()}
+document.body.onkeydown = e => {if(e.key==="Enter"&&e.target.nodeName!=="BUTTON") handleInput()}
 
 function firstUp(str) {
-    if (str==undefined) return undefined
+    if (str==null) return undefined
     return str.slice(0,1).toUpperCase()+str.slice(1)
 }
 
@@ -32,6 +39,7 @@ async function getRoute(source, dest) {
     if (window.route&&firstUp(source)===firstUp(window.route.sources[0])&&firstUp(dest)===firstUp(window.route.destinations[0])) {
        window.route=JSON.parse(oroute)
        draw(window.route)
+       drawGraph(window.route)
        return
     }
     pre.innerText = "Waiting for response"
@@ -58,6 +66,7 @@ async function getRoute(source, dest) {
     window.oroute = JSON.stringify(route)
     window.route = route
     draw(route)
+    drawGraph(route)
 }
 
 function addBackward(route) {
@@ -74,7 +83,6 @@ function addBackward(route) {
 
 function draw(route) {
     let sources = new Set(route.sources);
-    let txtOut = ""
     pre.innerHTML = ""
     if (route.forward===null) {
         pre.innerText += "No route found"
@@ -101,7 +109,70 @@ function draw(route) {
         sources = dests
         pre.appendChild(document.createElement("br"))
     }
-    return txtOut
+}
+
+function getArrowCoords(svg, el, right) {
+  let svgPos = svg.getBoundingClientRect()
+  let elPos = el.getBoundingClientRect()
+  elPos.y += elPos.height/2
+  if (right) elPos.x += elPos.width
+  return (elPos.x-svgPos.x)+","+(elPos.y-svgPos.y)
+}
+function drawGraph(route) {
+    graph.innerHTML=""
+    if (!document.getElementById("showGraph").checked||!route) return
+    let sources = new Set(route.sources);
+    if (route.forward===null) {
+        return
+    }
+    while (sources.size) {
+        let dests = new Set();
+        let layerDiv = document.createElement("div")
+        layerDiv.style.margin = "auto"
+        graph.appendChild(layerDiv)
+        sources.forEach(source => {
+            let cell = document.createElement("div")
+            cell.innerText = source
+            cell.id = "graphcell "+source
+            cell.onclick = function() { goVia(route, this.innerText) }
+            layerDiv.appendChild(cell)
+            let dest = route.forward[source]
+            if (!dest) return;
+            dest = new Set(dest)
+            dest.forEach(a=>dests.add(a))
+        })
+        sources = dests
+    }
+    sources = new Set(route.sources);
+    let layer = 0;
+    let path = ""
+    let svg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
+    svg.style.position="absolute"
+    svg.style.pointerEvents="none"
+    svg.setAttribute("width", graph.getBoundingClientRect().width)
+    svg.setAttribute("height", graph.getBoundingClientRect().height)
+    graph.appendChild(svg)
+    for (;sources.size;layer++) {
+        let dests = new Set();
+        let layerDiv = graph.children[layer]
+        let i = 0;
+        sources.forEach(source => {
+            let cell = layerDiv.children[i++]
+            let base = "M"+getArrowCoords(svg, cell, true)+" "
+            let dest = route.forward[source]
+            if (!dest) return;
+            dest = new Set(dest)
+            dest.forEach(dest=>{
+                path += base+"L"+getArrowCoords(svg, document.getElementById("graphcell "+dest), false)+" "
+            })
+            dest.forEach(a=>dests.add(a))
+        })
+        sources = dests
+    }
+    let svgPath = document.createElementNS("http://www.w3.org/2000/svg", "path")
+    svgPath.style = "stroke:red; stroke-width: 1.25px; fill: none;"
+    svgPath.setAttribute("d",path)
+    svg.appendChild(svgPath)
 }
 
 function handleRemoval(route, thing) {
@@ -130,11 +201,11 @@ function goVia(route, thing) {
         })
     }
     if (dests.size===0) throw new Error("Unable to find "+thing)
-    if (sources===undefined) {
+    if (sources==null) {
         route.sources = [thing]
     } else {
         sources.forEach(source => {
-            if (route.forward[source]===undefined) {console.log("Source "+source+" no longer exists (2)");return}
+            if (route.forward[source]==null) {console.log("Source "+source+" no longer exists (2)");return}
             if (route.forward[source].includes(thing)) {
                 route.forward[source] = [thing]
             } else {
@@ -144,7 +215,14 @@ function goVia(route, thing) {
         })
     }
     addBackward(route)
-    return draw(route)
+    draw(route)
+    drawGraph(route)
+}
+
+function reverse() {
+  let source = document.getElementById("source").value
+  document.getElementById("source").value = document.getElementById("dest").value
+  document.getElementById("dest").value = source
 }
 </script>
 </body>

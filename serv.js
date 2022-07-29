@@ -1,13 +1,17 @@
 const http = require('http');
 const child_process = require('child_process');
-const fs = require('fs')
-const homepage = fs.readFileSync("wikirouteclient.html")
+const fs = require('fs');
+const repl = require('repl');
+//const ratelimit = require('./ratelimit.js');
+const homepage = fs.readFileSync("wikirouteclient.html");
 
 let queue = [];
-let queuedIps = new Set();
-function wikiroute(inp) {
+
+let logStream = fs.createWriteStream("wikiroute.log", {flags:"a"})
+function wikiroute(inp, shouldAbort) {
+    logStream.write(inp)
     return new Promise((resolve, reject) => {
-        queue.push({inp, resolve, reject});
+        queue.push({inp, shouldAbort, resolve, reject});
         process.stderr.write(queue.length+"\n");
         if (queue.length===1) handleQueue();
     });
@@ -18,9 +22,7 @@ child.stdout.resume();
 child.stdout.setEncoding("utf-8");
 console.log(child.stdout.readableHighWaterMark);
 var lingeringLine = "";
-child.stdout.on('readable', function() {
-    let chunk = child.stdout.read(child.stdout.readableLength)
-//    console.log("Read "+chunk.length+" bytes\n");
+child.stdout.on('data', function(chunk) {
     lines = chunk.split("\n");
     lines[0] = lingeringLine + lines[0];
     lingeringLine = lines.pop();
@@ -33,11 +35,15 @@ child.stderr.pipe(process.stderr);
 
 function handleQueue() {
     let it = queue[0];
+    while (queue.length>0&&it.shouldAbort()) {
+        it.reject("aborted");
+        it = queue.shift();
+    }
+    if (queue.length===0) return;
     global.processLine = function(line) {
         global.processLine = function() { throw new Error("Unexpected line") };
         it.resolve(line);
         queue.shift();
-//        console.log("Queue left: "+queue.length);
         process.stderr.write(queue.length+"\n");
         if (queue.length>0) {
             setTimeout(handleQueue);
@@ -47,19 +53,17 @@ function handleQueue() {
 }
 const server = http.createServer(async (req, res) => {
     try {
-    let ip;
     let [path, search] = req.url.split("?")
     search = (search||"").split("&");
     if (path==="/wikiroute") {
         let source, dest;
-        ip = req.socket.localAddress;
-//        process.stderr.write(ip+" "+req.url+"\n");
-        if (queuedIps.has(ip)) {
+        let ip = req.socket.remoteAddress;
+/*        if (ratelimit.ratelimitin(ip)) {
             res.writeHead(429, {"Content-Type": "application/json"});
             res.end('{"error":"Too many requests"}');
             return;
-        }
-        queuedIps.add(ip);
+        }*/
+        try {
         for (let i=0;i<search.length;i++) {
             let [key, value] = search[i].split("=", 2).map(decodeURIComponent);
             if (key==="source") source = value;
@@ -74,10 +78,14 @@ const server = http.createServer(async (req, res) => {
         dest = dest.split("\n").join("").split("\0").join("");
         res.writeHead(200, {"Content-Type": "application/json"});
         let date = Date.now();
-        let route = await wikiroute("A "+source+"\nB "+dest+"\nR\n");
+        let route = await wikiroute("A "+source+"\nB "+dest+"\nR\n", ()=>req.socket.destroyed);
         process.stderr.write("Queue time: "+(Date.now()-date)+"\n");
-        queuedIps.delete(ip); // maybe change to req.socket.localAddress for auto banning
         res.end(route);
+        } catch(err) {
+            res.end('{"error":"Internal Server Error"}');
+            console.log(err.stack);
+        }
+//        ratelimit.ratelimitout(ip);
     } else if (path==="/") {
         res.writeHead(200, {"Content-Type": "text/html"});
         res.end(homepage);
@@ -88,8 +96,12 @@ const server = http.createServer(async (req, res) => {
     } catch(err) {
         res.writeHead(500, {"Content-Type": "text/plain"});
         res.end("Internal Server Error");
-        //if (ip) queuedIps.delete(ip);
         console.error(err.stack);
     }
 })
 server.listen(8080);
+/*let replctx = repl.start('> ').context;
+replctx.ratelimit = ratelimit
+replctx.queue = queue
+replctx.child = child
+replctx.server = server*/
