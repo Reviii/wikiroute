@@ -73,7 +73,6 @@ Malformed input files can cause undefine behaviour in route and explore
 Possible optimizations:
 =======================
 parselinks: Don't call realloc as often
-route: store a list of all the nodes that have been modified to improve node cleaning performance
 
 Further reading:
 ================

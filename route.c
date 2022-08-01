@@ -11,39 +11,12 @@
 
 #define JSON
 
-static void cleanNodes(char * nodeData, nodeRef * nodeOffsets, size_t nodeCount) {
-    for (size_t i=0;i<nodeCount;i++) {
-        struct wikiNode * node = getNode(nodeData, nodeOffsets[i]);
-        if (!node->redirect) continue;
+static void cleanNodes(char * nodeData, struct buffer toClean) {
+    for (size_t i=0;i<toClean.used/sizeof(nodeRef);i++) {
+        struct wikiNode * node = getNode(nodeData, toClean.u32content[i]);
         node->dist_a = 0;
         node->dist_b = 0;
     }
-}
-
-static void cleanNodesA(char * nodeData, size_t distAMax, struct wikiNode * node) {
-    uint8_t distA = node->dist_a;
-    if (distA<distAMax) {
-        for (size_t i=0;i<node->forward_length;i++) {
-            struct wikiNode * target = getNode(nodeData, node->references[i]);
-            if (target->dist_a==distA+1) cleanNodesA(nodeData, distAMax, target);
-        }
-    }
-    node->dist_a = 0;
-    node->dist_b = 0;
-}
-
-static void cleanNodesB(char * nodeData, size_t distBMax, struct wikiNode * node) {
-    uint8_t distB = node->dist_b;
-    if (distB<distBMax) {
-        size_t len = node->forward_length+node->backward_length;
-        for (size_t i=node->forward_length;i<len;i++) {
-            struct wikiNode * target = getNode(nodeData, node->references[i]);
-            if (!target->dist_b) target->dist_b = distB+1;
-            if (target->dist_b==distB+1) cleanNodesB(nodeData, distBMax, target);
-        }
-    }
-    node->dist_a = 0;
-    node->dist_b = 0;
 }
 
 static void freePrint(char * format, char * str) {
@@ -68,9 +41,13 @@ static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, char * 
     bool match = false;
     struct buffer matches = bufferCreate();
     struct buffer New = bufferCreate();
-    struct buffer originalA = bufferDup(oA);
     struct buffer A = bufferDup(oA);
     struct buffer B = bufferDup(oB);
+    struct buffer originalA = bufferDup(oA);
+    struct buffer toCleanA = bufferCreate();
+    struct buffer toCleanB = bufferCreate();
+    size_t aIndex[256];
+    aIndex[0] = 0;
     #ifdef JSON
     printf("{\"sources\":[");
     if (A.used)
@@ -92,14 +69,13 @@ static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, char * 
         printf("B: %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)(B.content+i)));
     }
     #endif
-    while (!match) {
+    while (!match&&distA+distB<=500) {
 #ifdef STATS
         printf("A:%zu B:%zu\n", A.used/sizeof(nodeRef), B.used/sizeof(nodeRef));
 #endif
         size_t newcount = 0;
         if (shouldChooseSideA(distA, distB, A, B)) {
             nodeRef * content = (nodeRef *)A.content;
-            struct buffer tmp;
             if (!A.used) break;
             for (size_t i=0;i<A.used/sizeof(nodeRef);i++) {
                 struct wikiNode * node = getNode(nodeData, content[i]);
@@ -119,14 +95,19 @@ static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, char * 
                     node->forward_length*sizeof(nodeRef)
                 );
             }
+            aIndex[distA] = toCleanA.used/sizeof(nodeRef);
             distA++;
-            tmp = A;
+            memcpy(
+                __builtin_assume_aligned(bufferAdd(&toCleanA, A.used), sizeof(nodeRef)),
+                __builtin_assume_aligned(A.content, sizeof(nodeRef)),
+                A.used
+            );
+            struct buffer tmp = A;
             A = New;
             New = tmp;
             New.used=0;
         } else {
             nodeRef * content = (nodeRef *)B.content;
-            struct buffer tmp;
             if (!B.used) break;
             for (size_t i=0;i<B.used/sizeof(nodeRef);i++) {
                 struct wikiNode * node = getNode(nodeData, content[i]);
@@ -147,7 +128,12 @@ static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, char * 
                 );
             }
             distB++;
-            tmp = B;
+            memcpy(
+                __builtin_assume_aligned(bufferAdd(&toCleanB, B.used), sizeof(nodeRef)),
+                __builtin_assume_aligned(B.content, sizeof(nodeRef)),
+                B.used
+            );
+            struct buffer tmp = B;
             B = New;
             New = tmp;
             New.used=0;
@@ -156,8 +142,6 @@ static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, char * 
         printf("Checked %zu new articles\n", newcount);
 #endif
     }
-    size_t distBMax = distB-1;
-    size_t distAMax = distA-1;
     if (!match) {
         #ifdef JSON
         printf("],\"route\":null}\n");
@@ -174,42 +158,32 @@ static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, char * 
         printf("distA: %zu, distB: %zu\n", distA, distB);
         #endif
         assert(!New.used);
-        while (distA>2) {
-            struct buffer tmp;
-            for (size_t i=0;i<matches.used/sizeof(nodeRef);i++) {
-                struct wikiNode * node = getNode(nodeData, matches.u32content[i]);
-                assert(node->dist_a==distA);
-                size_t len = node->backward_length+node->forward_length;
-                for (size_t j=node->forward_length;j<len;j++) {
-                    struct wikiNode * target = getNode(nodeData, node->references[j]);
-                    if (target->dist_a==distA-1) {
-                        target->dist_b = distB+1;
-                        *(nodeRef *)bufferAdd(&New, sizeof(nodeRef)) = (char *)target-nodeData;
+        while (distA>1) {
+            for (size_t i=aIndex[distA-1];i<aIndex[distA];i++) {
+                struct wikiNode * node = getNode(nodeData, toCleanA.u32content[i]);
+                if (!node->dist_a) continue;
+                nodeRef * refs = node->references;
+                nodeRef * refMax = refs+node->forward_length;
+                for (;refs<refMax;refs++) { // this loop was hot
+                    struct wikiNode * target = getNode(nodeData, *refs);
+                    if (target->dist_b==distB) {
+                        node->dist_a = 0;
+                        node->dist_b = distB+1;
+                        break;
                     }
                 }
             }
             distA--;
             distB++;
-            tmp = matches;
-            matches = New;
-            New = tmp;
-            New.used = 0;
         }
+
         free(matches.content);
         matches = originalA;
-        if (distA==2) {
-            for (size_t i=0;i<matches.used/sizeof(nodeRef);i++) {
-                struct wikiNode * node = getNode(nodeData, matches.u32content[i]);
-                node->dist_b = distB+1;
-            }
-            distA--;
-            distB++;
-        }
+
         #ifdef JSON
         bool firstIteration = true;
         #endif
         while (distB>1) {
-            struct buffer tmp;
             #ifdef JSON
             if (!firstIteration) printf("], ");
             firstIteration = false;
@@ -243,7 +217,7 @@ static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, char * 
             distA++;
             distB--;
             assert(New.used);
-            tmp = matches;
+            struct buffer tmp = matches;
             matches = New;
             New = tmp;
             New.used = 0;
@@ -264,16 +238,10 @@ static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, char * 
     free(B.content);
     free(New.content);
     free(matches.content);
-    for (size_t i=0;i<oA.used/sizeof(nodeRef);i++) {
-        cleanNodesA(nodeData, distAMax, getNode(nodeData, oA.u32content[i]));
-    }
-    for (size_t i=0;i<oB.used/sizeof(nodeRef);i++) {
-        cleanNodesB(nodeData, distBMax, getNode(nodeData, oB.u32content[i]));
-    }
-    // in some very complex routes then old cleanNodes function might be faster than
-    // the cleanNodesA and cleanNodesB functions
-    // TODO: use cleanNodes function when that is likely to be the case
-    if (0) cleanNodes(nodeData, nodeOffsets, nodeCount);
+    cleanNodes(nodeData, toCleanA);
+    free(toCleanA.content);
+    cleanNodes(nodeData, toCleanB);
+    free(toCleanB.content);
 }
 
 int main(int argc, char ** argv) {
