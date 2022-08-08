@@ -15,6 +15,10 @@ static void __attribute__((constructor)) createHexLookup() {
     }
 }
 
+static uint8_t toUpper(char c) {
+    if (c>='a'&&c<='z') return c-32;
+    return c;
+}
 
 static void printlink(const char * link, int length, bool redirect) {
     if (redirect) {
@@ -65,10 +69,10 @@ void printlinks(const char * wikiText, size_t length) {
             }
             break;
         case STATE_HASH:
-            if (c=='R') {
+            if (c=='R'||c=='r') {
                 state = STATE_R_EN;
                 correctChars = 1;
-            } else if (c=='D') {
+            } else if (c=='D'||c=='d') {
                 state = STATE_R_NL;
                 correctChars = 1;
             } else {
@@ -78,7 +82,7 @@ void printlinks(const char * wikiText, size_t length) {
             break;
         case STATE_R_EN:
         case STATE_R_NL:
-            if (c==langParts[state-STATE_R_EN][correctChars]) {
+            if (c==langParts[state-STATE_R_EN][correctChars]||toUpper(c)==langParts[state-STATE_R_EN][correctChars]) {
                 correctChars++;
                 if (langParts[state-STATE_R_EN][correctChars]=='\0') {
                     redirect = true;
