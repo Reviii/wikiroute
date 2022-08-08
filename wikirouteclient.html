@@ -42,6 +42,7 @@ async function getRoute(source, dest) {
        drawGraph(window.route)
        return
     }
+    graph.innerHTML = ""
     pre.innerText = "Waiting for response"
     err.innerText = ""
     window.control = new AbortController()
