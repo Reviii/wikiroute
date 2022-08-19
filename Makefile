@@ -1,5 +1,5 @@
 CFLAGS = -O3 -Wall -Wextra -flto
-ALL = extractlinks printlinks-test removeduplicates presort parselinks explore route parsesql
+ALL = extractlinks printlinks-test removeduplicates presort parselinks verifynodes explore route parsesql
 all: $(ALL)
 
 extractlinks: extractlinks.o printlinks.o
@@ -9,6 +9,9 @@ parselinks: parselinks.o buffer.o
 	$(CC) $^ $(CFLAGS) -o $@
 
 parsesql: parsesql.o buffer.o
+	$(CC) $^ $(CFLAGS) -o $@
+
+verifynodes: verifynodes.o buffer.o mapfile.o nodeutils.o
 	$(CC) $^ $(CFLAGS) -o $@
 
 explore: explore.o buffer.o mapfile.o nodeutils.o
@@ -34,6 +37,7 @@ links.txt: wikidump.bz2 extractlinks presort removeduplicates
 
 nodes.bin: links.txt parselinks
 	./parselinks links.txt nodes.bin titles.txt
+	./verifynodes nodes.bin titles.txt
 
 clean:
 	rm -f $(ALL) *.o
