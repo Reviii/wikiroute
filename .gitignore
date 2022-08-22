@@ -10,6 +10,7 @@ presort
 printlinks-test
 removeduplicates
 route
+verifynodes
 
 links.txt
 nodes.bin
