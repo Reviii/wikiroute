@@ -154,7 +154,7 @@ static struct wikiNode * addReference(struct wikiNode * node, nodeRef ref, bool 
 }
 
 static struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount, size_t * titleMap) {
-    int id = 0;
+    nodeRef id = 0;
     bool inLink = false;
     struct buffer titleBuf = bufferCreate();
     struct wikiNode ** nodes = malloc(titleCount*sizeof(struct wikiNode *));
@@ -167,7 +167,7 @@ static struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount
                 titleBuf.content[1] = uppercaseChar(titleBuf.content[1]); // make first char case insensitive
                 nodeRef ref = title2id(id2title, titleMap, titleBuf.content+1); // titleBuf.content+1, becauce the first char needs to be ignored
                 titleBuf.used = 0;
-                if (ref==-1) continue;
+                if (ref==(nodeRef)-1||ref==id) continue;
                 if (titleBuf.content[0]=='r'&&!nodes[id]->redirect) nodes[id]->redirect = nodes[id]->forward_length+1;
                 nodes[id] = addReference(nodes[id], ref, false);
             }
@@ -212,7 +212,6 @@ static struct wikiNode ** addBackwardRefs(struct wikiNode ** nodes, size_t title
     for (size_t i=0;i<titleCount;i++) {
         struct wikiNode * const from = nodes[i];
         for (int j=0;j<(from->forward_length);j++) {
-            if (from==nodes[from->references[j]]) continue;
             nodes[from->references[j]] = addReference(nodes[from->references[j]], i, true);
         }
     }
