@@ -148,6 +148,7 @@ static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, char * 
         #else
         printf("No route found\n");
         #endif
+        free(originalA.content);
     } else {
         // distA and distB are for the next layer, but we want the one for the matches layer
         distA--;
