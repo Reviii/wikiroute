@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html>
-<head><title>wikiroute</title><style>pre > div { width: max-content; } div > div { border: solid 1px; max-width: 30ch; }</style></head>
+<head><title>wikiroute</title><style>pre > div { width: max-content; } #graph > div > div { border: solid 1px; border-bottom: 0px; max-width: 30ch; } #graph > div > div:last-child { border-bottom: 1px solid; } #graph > div { padding: 0 32px; }</style><meta name="viewport" content="width=device-width, initial-scale=1"></head>
 <body>
 <label>Source:<input id="source"></label><button onclick="reverse();this.blur()" tabindex=1><svg width="12" height="12"><polygon points="0 4 6 4 3 0" /><polygon points="2 12 4 12 4 4 2 4" /><polygon points="8 8 10 8 10 0 8 0" /><polygon points="6 8 9 12 12 8" /></svg></button><br>
 <label>Destination:<input id="dest"></label><br>
@@ -12,6 +12,8 @@ err.style.color = "red"
 document.body.appendChild(err)
 let graph = document.createElement("div")
 graph.style.display = "flex"
+graph.style.minWidth = "min-content"
+graph.id = "graph"
 document.body.appendChild(graph)
 addEventListener("resize", ()=>drawGraph(window.route))
 let pre = document.createElement("pre")
@@ -121,6 +123,7 @@ function getArrowCoords(svg, el, right) {
 }
 function drawGraph(route) {
     graph.innerHTML=""
+    graph.style.display = "none"
     if (!document.getElementById("showGraph").checked||!route) return
     let sources = new Set(route.sources);
     if (route.forward===null) {
@@ -144,6 +147,7 @@ function drawGraph(route) {
         })
         sources = dests
     }
+    graph.style.display = "flex";
     sources = new Set(route.sources);
     let layer = 0;
     let path = ""
