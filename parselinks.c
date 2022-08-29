@@ -200,9 +200,14 @@ static struct wikiNode ** applyRedirects(struct wikiNode ** nodes, size_t titleC
     }
     for (size_t i=0;i<titleCount;i++) {
         struct wikiNode * node = nodes[i];
-        for (size_t j=0;j<node->forward_length;j++) {
-            node->references[j] = redirects[node->references[j]];
+        size_t write = 0;
+        for (size_t read=0;read<node->forward_length;read++) {
+            if (redirects[node->references[read]]==i) continue;
+            node->references[write] = redirects[node->references[read]];
+            write++;
         }
+        node->forward_length = write;
+        // maybe realloc?
     }
     free(redirects);
     return nodes;
@@ -212,6 +217,7 @@ static struct wikiNode ** addBackwardRefs(struct wikiNode ** nodes, size_t title
     for (size_t i=0;i<titleCount;i++) {
         struct wikiNode * const from = nodes[i];
         for (int j=0;j<(from->forward_length);j++) {
+            if (from==nodes[from->references[j]]) continue;
             nodes[from->references[j]] = addReference(nodes[from->references[j]], i, true);
         }
     }
@@ -226,6 +232,21 @@ static size_t removeUselessRedirectionPages(struct wikiNode ** nodes, size_t tit
             nodes[i] = NULL;
             removed++;
         }
+    }
+    // remove backward refs to removed redirects
+    for (size_t i=0;i<titleCount;i++) {
+        struct wikiNode * node = nodes[i];
+        if (!node) continue;
+        size_t write = 0;
+        for (size_t read=0;read<node->backward_length;read++) {
+            if (nodes[node->references[node->forward_length+read]]) {
+                node->references[node->forward_length+write] = node->references[node->forward_length+read];
+                write++;
+            } else {
+                removed++;
+            }
+        }
+        node->backward_length = write;
     }
     return removed;
 }
@@ -348,7 +369,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Added backward references\n");
 
     fprintf(stderr, "Removed %zu useless redirection pages\n", removeUselessRedirectionPages(id2node, titleCount));
-    fprintf(stderr, "Removed %zu backward references to unreachable node\n", removeSomeBackwardRefs(id2node, titleCount));
+    fprintf(stderr, "Removed %zu backward references to unreachable nodes\n", removeSomeBackwardRefs(id2node, titleCount));
 
     id2nodeOffset = getNodeOffsets(id2node, titleCount);
     id2node = replaceIdsWithOffsets(id2node, titleCount, id2nodeOffset);
