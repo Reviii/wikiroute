@@ -188,13 +188,15 @@ static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, char * 
             #ifdef JSON
             if (!firstIteration) printf("], ");
             firstIteration = false;
+            bool firstNestedIteration = true;
             #endif
             for (size_t i=0;i<matches.used/sizeof(nodeRef);i++) {
                 struct wikiNode * node = getNode(nodeData, matches.u32content[i]);
-                if (!node->dist_b) continue;
+                if (!node->dist_b) continue; // TODO: this messes up JSON output
                 node->dist_b = 0;
                 #ifdef JSON
-                if (i>0) printf("],");
+                if (!firstNestedIteration) printf("],");
+                firstNestedIteration = false;
                 freePrinto("%s:[", nodeOffsetToJSONTitle(titles, nodeOffsets, titleOffsets, nodeCount, matches.u32content[i]));
                 bool first = true;
                 #else
