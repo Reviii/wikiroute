@@ -46,14 +46,14 @@ static const char * langParts[] = {
 "DOORVERWIJZING"};
 
 void printlinks(const char * wikiText, size_t length) {
-    enum State {STATE_TEXT, STATE_HASH, STATE_R_EN, STATE_R_NL, STATE_REDIRECT, STATE_ALMOSTLINK, STATE_LINKSTART, STATE_LINK};
+    enum State {STATE_TEXT, STATE_HASH, STATE_R_EN, STATE_R_NL, STATE_REDIRECT, STATE_ALMOSTLINK, STATE_LINKSTART, STATE_LINK, STATE_HTML, STATE_COMMENT_START, STATE_COMMENT};
     enum State state = STATE_TEXT;
     bool redirect = false;
     const char * link = NULL;
     size_t correctChars = 0;
     for (size_t i=0;i<length;i++) {
         char c = wikiText[i];
-//        printf("Encountered '%c' at state %u correctChars: %u redirect: %s\n", c, state, correctChars, redirect ? "true" : "false");
+//        printf("Encountered '%c' at state %u correctChars: %zu redirect: %s\n", c, state, correctChars, redirect ? "true" : "false");
         switch (state) {
         case STATE_REDIRECT:
             if (c!=' '&&c!='[') {
@@ -66,6 +66,8 @@ void printlinks(const char * wikiText, size_t length) {
                 state = STATE_ALMOSTLINK;
             } else if (c=='#') {
                 state = STATE_HASH;
+            } else if (c=='<') {
+                state = STATE_HTML;
             }
             break;
         case STATE_HASH:
@@ -129,6 +131,36 @@ void printlinks(const char * wikiText, size_t length) {
                 break;
             }
             correctChars++;
+            break;
+        case STATE_HTML:
+            if (c=='!') {
+                state = STATE_COMMENT_START;
+                correctChars = 0;
+            } else {
+                state = STATE_TEXT;
+                i--;
+            }
+            break;
+        case STATE_COMMENT_START:
+            if (c=='-') {
+                correctChars++;
+                if (correctChars==2) {
+                    state = STATE_COMMENT;
+                    //correctChars = 0;
+                }
+            } else {
+                state = STATE_TEXT;
+                i--; // Not really needed
+            }
+            break;
+        case STATE_COMMENT:
+            if (c=='-') {
+                correctChars++;
+            } else if (c=='>'&&correctChars>=2) {
+                state = STATE_TEXT;
+            } else {
+                correctChars = 0;
+            }
             break;
         }
     }
