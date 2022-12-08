@@ -13,6 +13,7 @@ struct wikiNode {
     union {
         uint32_t backward_length;
         nodeRef id;
+        nodeRef linked_by;
     };
     nodeRef references[];
 };

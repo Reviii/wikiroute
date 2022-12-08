@@ -119,7 +119,7 @@ int main(int argc, char ** argv) {
     printf("Replaced offsets with ids\n");
     for (size_t i=0;i<nodeCount;i++) {
         struct wikiNode * node = getNode(nodeData, nodeOffsets[i]);
-        node->backward_length = 0;
+        node->linked_by = (nodeRef) -1;
     }
     for (size_t i=0;i<nodeCount;i++) {
         struct wikiNode * node = getNode(nodeData, nodeOffsets[i]);
@@ -129,9 +129,19 @@ int main(int argc, char ** argv) {
             nodeRef ref = refs[j];
             struct wikiNode * target = getNode(nodeData, nodeOffsets[ref]);
             target->linked = true;
+            if (target->linked_by==i) {
+                printf("Duplicate reference\n");
+                printf("node id: %zu, node offset: %zu, reference index: %zu, reference offset: %zu\n", i, (size_t) nodeOffsets[i], j, nodeOffsets[i]+sizeof(struct wikiNode)+j*sizeof(nodeRef));
+                return 9;
+            }
+            target->linked_by = i;
         }
     }
     printf("Marked nodes that are linked by other nodes\n");
+    for (size_t i=0;i<nodeCount;i++) {
+        struct wikiNode * node = getNode(nodeData, nodeOffsets[i]);
+        node->backward_length = 0;
+    }
     bool backwardremoved = false;
     bool backwardkept = false;
     for (size_t i=0;i<nodeCount;i++) {
