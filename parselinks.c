@@ -203,8 +203,13 @@ static struct wikiNode ** applyRedirects(struct wikiNode ** nodes, size_t titleC
         size_t write = 0;
         for (size_t read=0;read<node->forward_length;read++) {
             if (redirects[node->references[read]]==i) continue;
-            node->references[write] = redirects[node->references[read]];
+            nodeRef newRef = redirects[node->references[read]];
+            for (size_t j=0;j<read;j++) {
+                if (node->references[j]==newRef) goto afterwrite;
+            }
+            node->references[write] = newRef;
             write++;
+afterwrite:
         }
         node->forward_length = write;
         // maybe realloc?
@@ -243,7 +248,7 @@ static size_t removeUselessRedirectionPages(struct wikiNode ** nodes, size_t tit
                 node->references[node->forward_length+write] = node->references[node->forward_length+read];
                 write++;
             } else {
-                removed++;
+//                removed++;
             }
         }
         node->backward_length = write;
