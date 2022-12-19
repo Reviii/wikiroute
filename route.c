@@ -71,7 +71,7 @@ static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, char * 
     #endif
     while (!match&&distA+distB<=500) {
 #ifdef STATS
-        printf("A:%zu B:%zu\n", A.used/sizeof(nodeRef), B.used/sizeof(nodeRef));
+        fprintf(stderr, "A:%zu B:%zu\n", A.used/sizeof(nodeRef), B.used/sizeof(nodeRef));
 #endif
         size_t newcount = 0;
         if (shouldChooseSideA(distA, distB, A, B)) {
@@ -139,7 +139,7 @@ static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, char * 
             New.used=0;
         }
 #ifdef STATS
-        printf("Checked %zu new articles\n", newcount);
+        fprintf(stderr, "Checked %zu new articles\n", newcount);
 #endif
     }
     if (!match) {
