@@ -49,14 +49,23 @@ function handleQueue() {
             setTimeout(handleQueue);
         }
     }
-    child.stdin.write(it.inp);
+    child.stdin.write(it.inp)
+}
+function getData(req) {
+    req.setEncoding('utf-8');
+    let data ='';
+    req.on('data',d=>data+=d);
+    return new Promise((resolve,reject)=>{
+        req.on('end',()=>resolve(data));
+        req.on('error',()=>reject());
+    });
 }
 const server = http.createServer(async (req, res) => {
     try {
     let [path, search] = req.url.split("?")
     search = (search||"").split("&");
     if (path==="/wikiroute") {
-        let source, dest;
+        let sources, dests;
         let ip = req.socket.remoteAddress;
 /*        if (ratelimit.ratelimitin(ip)) {
             res.writeHead(429, {"Content-Type": "application/json"});
@@ -66,20 +75,26 @@ const server = http.createServer(async (req, res) => {
         try {
         for (let i=0;i<search.length;i++) {
             let [key, value] = search[i].split("=", 2).map(decodeURIComponent);
-            if (key==="source") source = value;
-            if (key==="dest") dest = value;
+            if (key==="source") sources = value.split("|");
+            if (key==="dest") dests = value.split("|");
         }
-        if (source===undefined||dest===undefined) {
+        if (req.method==="POST") {
+            let data = JSON.parse(await getData(req));
+            if (Array.isArray(data.sources)) sources = data.sources.map(a=>a+'');
+            if (Array.isArray(data.sources)) dests = data.dests.map(a=>a+'');
+        }
+        if (sources===undefined||dests===undefined) {
             res.writeHead(400, {"Content-Type": "text/plain"});
             res.end("Invalid query params");
             return;
         }
-        source = source.split("\n").join("").split("\0").join("");
-        dest = dest.split("\n").join("").split("\0").join("");
-        res.writeHead(200, {"Content-Type": "application/json"});
+        sources = sources.map(a=>a.split("\n").join("").split("\0").join(""));
+        dests = dests.map(a=>a.split("\n").join("").split("\0").join(""));
+        res.writeHead(200, {"Content-Type": "application/json", "Access-Control-Allow-Origin":"*"});
         let date = Date.now();
-        let route = await wikiroute("A "+source+"\nB "+dest+"\nR\n", ()=>req.socket.destroyed);
-        process.stderr.write("Queue time: "+(Date.now()-date)+"\n");
+        let len = queue.length+1;
+        let route = await wikiroute("A "+sources.join("\nA ")+"\nB "+dests.join("\nB ")+"\nR\n", ()=>req.socket.destroyed);
+        process.stderr.write("Queue time: "+(Date.now()-date)+"/"+len+"\n");
         res.end(route);
         } catch(err) {
             res.end('{"error":"Internal Server Error"}');
