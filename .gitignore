@@ -5,13 +5,23 @@ explore
 extracttitles
 extractlinks
 parselinks
-parsesql
 presort
 printlinks-test
 removeduplicates
 route
 verifynodes
+parsepagelinks
+parsepagelinks2
+parsepagetitles
 
 links.txt
 nodes.bin
 titles.txt
+
+pagelinks.sql.gz
+pages.sql.gz
+redirect.sql.gz
+pagelinks.txt
+pagelinks.txt.gz
+pagetitles.txt
+pagetitles.txt.gz
