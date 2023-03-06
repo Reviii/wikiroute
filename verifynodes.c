@@ -10,22 +10,21 @@
 #include "nodetypes.h"
 #include "nodeutils.h"
 
-nodeRef * getNodeOffsetsAndCheck(char * nodeData, size_t nodeDataLength, size_t * nodeCount) {
-    nodeRef offset = 0;
-    struct buffer offsetBuf = bufferCreate();
+struct wikiNode  ** getNodesAndCheck(char * nodeData, size_t nodeDataLength, size_t * nodeCount) {
+    struct wikiNode * node = (struct wikiNode *) nodeData;
+    struct buffer nodeBuf = bufferCreate();
     *nodeCount = 0;
-    while (offset+sizeof(struct wikiNode)<=nodeDataLength) {
-        struct wikiNode * node = (struct wikiNode *) (nodeData + offset);
+    while ((char *)node+sizeof(struct wikiNode)<=nodeData+nodeDataLength) {
         if (node->redirect) {
-            printf("Node with id %zu and offset %zu does not start with null bytes\n", *nodeCount, (size_t) offset);
+            printf("Node with id %zu and offset %zu does not start with null bytes\n", *nodeCount, getNodeOffset(nodeData,node));
             return NULL;
         }
-        *(nodeRef *)bufferAdd(&offsetBuf, sizeof(nodeRef)) = offset;
+        *(struct wikiNode **)bufferAdd(&nodeBuf, sizeof(struct wikiNode *)) = node;
         (*nodeCount)++;
-        offset += sizeof(*node) + (node->forward_length+node->backward_length)*sizeof(node->references[0]);
+        node = (struct wikiNode *) ((char *) node + sizeof(*node) + (node->forward_length+node->backward_length)*sizeof(node->references[0]));
     }
-    *(nodeRef *)bufferAdd(&offsetBuf, sizeof(nodeRef)) = offset;
-    return (nodeRef *) offsetBuf.content;
+    *(struct wikiNode **)bufferAdd(&nodeBuf, sizeof(struct wikiNode *)) = node;
+    return (struct wikiNode **) nodeBuf.content;
 }
 
 size_t * getTitleOffsetsAndCheck(FILE * f, size_t * titleCount) {
@@ -48,13 +47,14 @@ size_t * getTitleOffsetsAndCheck(FILE * f, size_t * titleCount) {
     }
     return (size_t *) offsetBuf.content;
 }
+
 int main(int argc, char ** argv) {
     char * nodeData = NULL;
     size_t nodeDataLength = 0;
     size_t nodeCount = 0;
     FILE * titleFile = NULL;
     size_t titleCount = 0;
-    nodeRef * nodeOffsets = NULL;
+    struct wikiNode ** nodes = NULL;
     size_t * titleOffsets = NULL;
 
     if (argc<3) {
@@ -75,8 +75,8 @@ int main(int argc, char ** argv) {
         return -1;
     }
 
-    nodeOffsets = getNodeOffsetsAndCheck(nodeData, nodeDataLength, &nodeCount);
-    if (!nodeOffsets) return 1;
+    nodes = getNodesAndCheck(nodeData, nodeDataLength, &nodeCount);
+    if (!nodes) return 1;
     printf("Calculated offsets for %zu nodes\n", nodeCount);
     titleOffsets = getTitleOffsets(titleFile, &titleCount);
     if (!titleOffsets) return 2;
@@ -87,51 +87,33 @@ int main(int argc, char ** argv) {
     }
     assert(titleCount == nodeCount);
     for (size_t i=0;i<nodeCount;i++) {
-        struct wikiNode * node = getNode(nodeData, nodeOffsets[i]);
-        node->id = i;
-    }
-    printf("Wrote node ids to node headers\n");
-    for (size_t i=0;i<nodeCount;i++) {
-        struct wikiNode * node = getNode(nodeData, nodeOffsets[i]);
+        struct wikiNode * node = nodes[i];
         nodeRef * refs = node->references;
-        size_t reflen = (nodeOffsets[i+1]-nodeOffsets[i]-sizeof(struct wikiNode))/sizeof(nodeRef);
+        size_t reflen = node->forward_length+node->backward_length;
         for (size_t j=0;j<reflen;j++) {
             nodeRef ref = refs[j];
-            if (ref<0||ref>nodeDataLength) {
+            if (ref<0||ref>=nodeCount) {
                 printf("Reference out of bounds\n");
-                printf("node id: %zu, node offset: %zu, reference index: %zu, reference offset: %zu\n", i, (size_t) nodeOffsets[i], j, nodeOffsets[i]+sizeof(struct wikiNode)+j*sizeof(nodeRef));
+                printf("node id: %zu, node offset: %zu, reference index: %zu, reference offset: %zu\n", i, getNodeOffset(nodeData,nodes[i]), j, getNodeOffset(nodeData,nodes[i])+sizeof(struct wikiNode)+j*sizeof(nodeRef));
                 return 4;
             }
-            if (ref%sizeof(nodeRef)) {
-                printf("Unaligned reference\n");
-                printf("node id: %zu, node offset: %zu, reference index: %zu, reference offset: %zu\n", i, (size_t) nodeOffsets[i], j, nodeOffsets[i]+sizeof(struct wikiNode)+j*sizeof(nodeRef));
-                return 5;
-            }
-            struct wikiNode * node = getNode(nodeData, ref);
-            if (node->id<0||node->id>=nodeCount||nodeOffsets[node->id]!=ref) {
-                printf("Reference does not point to the start of a node\n");
-                printf("node id: %zu, node offset: %zu, reference index: %zu, reference offset: %zu\n", i, (size_t) nodeOffsets[i], j, nodeOffsets[i]+sizeof(struct wikiNode)+j*sizeof(nodeRef));
-                return 6;
-            }
-            refs[j] = node->id;
         }
     }
-    printf("Replaced offsets with ids\n");
     for (size_t i=0;i<nodeCount;i++) {
-        struct wikiNode * node = getNode(nodeData, nodeOffsets[i]);
+        struct wikiNode * node = nodes[i];
         node->linked_by = (nodeRef) -1;
     }
     for (size_t i=0;i<nodeCount;i++) {
-        struct wikiNode * node = getNode(nodeData, nodeOffsets[i]);
+        struct wikiNode * node = nodes[i];
         nodeRef * refs = node->references;
         size_t reflen = node->forward_length;
         for (size_t j=0;j<reflen;j++) {
             nodeRef ref = refs[j];
-            struct wikiNode * target = getNode(nodeData, nodeOffsets[ref]);
+            struct wikiNode * target = nodes[ref];
             target->linked = true;
             if (target->linked_by==i) {
                 printf("Duplicate reference\n");
-                printf("node id: %zu, node offset: %zu, reference index: %zu, reference offset: %zu\n", i, (size_t) nodeOffsets[i], j, nodeOffsets[i]+sizeof(struct wikiNode)+j*sizeof(nodeRef));
+                printf("node id: %zu, node offset: %zu, reference index: %zu, reference offset: %zu\n", i, getNodeOffset(nodeData,nodes[i]), j, getNodeOffset(nodeData,nodes[i])+sizeof(struct wikiNode)+j*sizeof(nodeRef));
                 return 9;
             }
             target->linked_by = i;
@@ -139,28 +121,30 @@ int main(int argc, char ** argv) {
     }
     printf("Marked nodes that are linked by other nodes\n");
     for (size_t i=0;i<nodeCount;i++) {
-        struct wikiNode * node = getNode(nodeData, nodeOffsets[i]);
+        struct wikiNode * node = nodes[i];
         node->backward_length = 0;
     }
     bool backwardremoved = false;
     bool backwardkept = false;
     for (size_t i=0;i<nodeCount;i++) {
-        struct wikiNode * node = getNode(nodeData, nodeOffsets[i]);
+        struct wikiNode * node = nodes[i];
         nodeRef * refs = node->references;
         size_t reflen = node->forward_length;
         for (size_t j=0;j<reflen;j++) {
             nodeRef ref = refs[j];
-            struct wikiNode * target = getNode(nodeData, nodeOffsets[ref]);
+            struct wikiNode * target = nodes[ref];
             if (target==node) continue;
-            if (sizeof(struct wikiNode)+target->forward_length*sizeof(nodeRef)+target->backward_length*sizeof(nodeRef)>=nodeOffsets[ref+1]-nodeOffsets[ref]
-               || target->references[target->forward_length+target->backward_length]>i) {
+            // backward_length has a different meaning here then in original file
+            size_t target_size = getNodeOffset(nodeData,nodes[ref+1])-getNodeOffset(nodeData,nodes[ref]);
+            if (sizeof(struct wikiNode)+target->forward_length*sizeof(nodeRef)+target->backward_length*sizeof(nodeRef)>=target_size
+              || target->references[target->forward_length+target->backward_length]>i) {
                 if (node->linked) {
-                    printf("Missing backward ref from (id: %zu, offset: %zu, ref index: %zu, ref offset: %zu) to (id: %zu, offset: %zu, ref index: %zu, ref offset: %zu)\n", (size_t) ref, (size_t) nodeOffsets[ref], (size_t) target->forward_length+target->backward_length, nodeOffsets[ref]+sizeof(struct wikiNode)+target->forward_length*sizeof(nodeRef)+target->backward_length*sizeof(nodeRef), i, (size_t) nodeOffsets[i], j, nodeOffsets[i]+sizeof(struct wikiNode)+j*sizeof(nodeRef));
+                    printf("Missing backward ref from (id: %zu, offset: %zu, ref index: %zu, ref offset: %zu) to (id: %zu, offset: %zu, ref index: %zu, ref offset: %zu)\n", (size_t) ref, getNodeOffset(nodeData,nodes[ref]), (size_t) target->forward_length+target->backward_length, getNodeOffset(nodeData,nodes[ref])+sizeof(struct wikiNode)+target->forward_length*sizeof(nodeRef)+target->backward_length*sizeof(nodeRef), i, getNodeOffset(nodeData,nodes[i]), j, getNodeOffset(nodeData,nodes[i])+sizeof(struct wikiNode)+j*sizeof(nodeRef));
                     return 7;
                 }
                 backwardremoved = true;
             } else if (target->references[target->forward_length+target->backward_length]<i) {
-                printf("Unexpected backward reference (id: %zu, offset: %zu, ref index: %zu, ref offset: %zu)\n", (size_t) ref, (size_t) nodeOffsets[ref], (size_t) target->forward_length+target->backward_length, nodeOffsets[ref]+sizeof(struct wikiNode)+target->forward_length*sizeof(nodeRef)+target->backward_length*sizeof(nodeRef));
+                printf("Unexpected backward reference (id: %zu, offset: %zu, ref index: %zu, ref offset: %zu)\n", (size_t) ref, getNodeOffset(nodeData,nodes[ref]), (size_t) target->forward_length+target->backward_length, getNodeOffset(nodeData,nodes[ref])+sizeof(struct wikiNode)+target->forward_length*sizeof(nodeRef)+target->backward_length*sizeof(nodeRef));
                 return 8;
             } else {
                 if (!node->linked) {
@@ -171,9 +155,10 @@ int main(int argc, char ** argv) {
         }
     }
     for (size_t i=0;i<nodeCount;i++) {
-        struct wikiNode * node = getNode(nodeData, nodeOffsets[i]);
-        if (sizeof(struct wikiNode)+node->forward_length*sizeof(nodeRef)+node->backward_length*sizeof(nodeRef)!=nodeOffsets[i+1]-nodeOffsets[i]) {
-            printf("Unexpected backward reference near end of node (id: %zu, offset: %zu, ref index: %zu, ref offset: %zu)\n", i, (size_t) nodeOffsets[i], (size_t) node->forward_length+node->backward_length, nodeOffsets[i]+sizeof(struct wikiNode)+node->forward_length*sizeof(nodeRef)+node->backward_length*sizeof(nodeRef));
+        struct wikiNode * node = nodes[i];
+        size_t target_size = getNodeOffset(nodeData,nodes[i+1])-getNodeOffset(nodeData,nodes[i]);
+        if (sizeof(struct wikiNode)+node->forward_length*sizeof(nodeRef)+node->backward_length*sizeof(nodeRef)!=target_size) {
+            printf("Unexpected backward reference near end of node (id: %zu, offset: %zu, ref index: %zu, ref offset: %zu)\n", i, getNodeOffset(nodeData,nodes[i]), (size_t) node->forward_length+node->backward_length, getNodeOffset(nodeData,nodes[i])+sizeof(struct wikiNode)+node->forward_length*sizeof(nodeRef)+node->backward_length*sizeof(nodeRef));
             return 8;
         }
     }

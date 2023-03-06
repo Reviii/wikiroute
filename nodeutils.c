@@ -9,17 +9,16 @@
 #include "nodetypes.h"
 #include "nodeutils.h"
 
-nodeRef * getNodeOffsets(char * nodeData, size_t nodeDataLength, size_t * nodeCount) {
-    nodeRef offset = 0;
-    struct buffer offsetBuf = bufferCreate();
+struct wikiNode ** getNodes(char * nodeData, size_t nodeDataLength, size_t * nodeCount) {
+    struct wikiNode * node = (struct wikiNode *) nodeData;
+    struct buffer nodeBuf = bufferCreate();
     *nodeCount = 0;
-    while (offset<nodeDataLength) {
-        struct wikiNode * node = (struct wikiNode *) (nodeData + offset);
-        *(nodeRef *)bufferAdd(&offsetBuf, sizeof(nodeRef)) = offset;
+    while ((char *)node<nodeData+nodeDataLength) {
+        *(struct wikiNode **)bufferAdd(&nodeBuf, sizeof(struct wikiNode *)) = node;
         (*nodeCount)++;
-        offset += sizeof(*node) + (node->forward_length+node->backward_length)*sizeof(node->references[0]);
+        node = (struct wikiNode *)((char *)node + sizeof(*node) + (node->forward_length+node->backward_length)*sizeof(node->references[0]));
     }
-    return (nodeRef *) offsetBuf.content;
+    return (struct wikiNode *) nodeBuf.content;
 }
 
 size_t * getTitleOffsets(FILE * f, size_t * titleCount) {
@@ -112,22 +111,6 @@ char * getJSONTitle(FILE * titles, size_t * titleOffsets, size_t id) {
     return ret;
 }
 
-char * nodeOffsetToTitle(FILE * titles, nodeRef * nodeOffsets, size_t * titleOffsets, size_t nodeCount, nodeRef nodeOffset) {
-    nodeRef id = nodeOffsetToId(nodeOffsets, nodeCount, nodeOffset);
-    if (id==(nodeRef)-1) return NULL;
-    return getTitle(titles, titleOffsets, id);
-}
-
-char * nodeOffsetToJSONTitle(FILE * titles, nodeRef * nodeOffsets, size_t * titleOffsets, size_t nodeCount, nodeRef nodeOffset) {
-    nodeRef id = nodeOffsetToId(nodeOffsets, nodeCount, nodeOffset);
-    if (id==(nodeRef)-1) {
-        char * ret = malloc(sizeof("null"));
-        strcpy(ret, "null");
-        return ret;
-    }
-    return getJSONTitle(titles, titleOffsets, id);
-}
-
 nodeRef nodeOffsetToId(nodeRef * nodeOffsets, size_t nodeCount, nodeRef nodeOffset) {
     ssize_t first, middle, last;
     first = 0;
@@ -151,12 +134,6 @@ void normalizeTitle(char * title) {
     for (;*title;title++) {
         if (*title=='_') *title = ' ';
     }
-}
-
-nodeRef titleToNodeOffset(FILE * titles, nodeRef * nodeOffsets, size_t * titleOffsets, size_t nodeCount, char * title) {
-    nodeRef id = titleToNodeId(titles, titleOffsets, nodeCount, title);
-    if (id==(nodeRef)-1) return id;
-    return nodeOffsets[id];
 }
 
 nodeRef titleToNodeId(FILE * titles, size_t * titleOffsets, size_t nodeCount, char * title) {

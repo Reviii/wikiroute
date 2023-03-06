@@ -15,7 +15,7 @@ int main(int argc, char ** argv) {
     size_t nodeCount = 0;
     FILE * titleFile = NULL;
     size_t titleCount = 0;
-    nodeRef * nodeOffsets = NULL;
+    struct wikiNode ** nodes = NULL;
     size_t * titleOffsets = NULL;
 
     if (argc<3) {
@@ -36,7 +36,7 @@ int main(int argc, char ** argv) {
         return -1;
     }
 
-    nodeOffsets = getNodeOffsets(nodeData, nodeDataLength, &nodeCount);
+    nodes = getNodes(nodeData, nodeDataLength, &nodeCount);
     printf("Calculated offsets for %zu nodes\n", nodeCount);
     titleOffsets = getTitleOffsets(titleFile, &titleCount);
     printf("Calculated offsets for %zu titles\n", titleCount);
@@ -51,43 +51,39 @@ int main(int argc, char ** argv) {
 
         if (!fgets(search, 256, stdin)) break;
         search[strlen(search)-1] = '\0';
-        if (search[0]==' '&&(search[1]=='#'||search[1]=='$')) {
+        if (search[0]==' '&&search[1]=='$') {
             long long input = strtoll(search+2, NULL, 0);
-            // don't check whether this is a valid offset
-            if (search[1]=='#') {
-                nodeOffset = input;
-                id = nodeOffsetToId(nodeOffsets, nodeCount, nodeOffset);
-            } else if (search[1]=='$') {
+            if (search[1]=='$') {
                 id = input;
-                nodeOffset = nodeOffsets[id];
+                nodeOffset = getNodeOffset(nodeData,nodes[id]);
             }
         } else {
             id = titleToNodeId(titleFile, titleOffsets, nodeCount, search);
             if (id==-1) {
                 nodeOffset = -1;
             } else {
-                nodeOffset = nodeOffsets[id];
+                nodeOffset = getNodeOffset(nodeData,nodes[id]);
             }
         }
-        if (nodeOffset==(nodeRef)-1) {
+        if (id==(nodeRef)-1) {
             printf("Could not find %s\n", search);
             continue;
         }
 
-        node = getNode(nodeData, nodeOffset);
+        node = nodes[id];
         if (node->redirect) printf("Corrupted node\n");
-        if (id!=(nodeRef)-1) printf("Id: %u\n", id);
+        printf("Id: %u\n", id);
         printf("Offset: %u\n", nodeOffset);
         printf("Size: %zu\n", sizeof(*node) + (node->forward_length+node->backward_length)*sizeof(node->references[0]));
-        title = nodeOffsetToTitle(titleFile, nodeOffsets, titleOffsets, nodeCount, nodeOffset);
+        title = getTitle(titleFile, titleOffsets, id);
         printf("Title: %s\n", title);
         printf("Links to %zu pages", (size_t) node->forward_length);
         if (node->forward_length<=500) {
             printf(":\n");
             for (size_t i=0;i < node->forward_length;i++) {
-                uint32_t offset = node->references[i];
-                char * title = nodeOffsetToTitle(titleFile, nodeOffsets, titleOffsets, nodeCount, offset);
-                printf("%u %s\n", offset, title);
+                nodeRef id = node->references[i];
+                char * title = getTitle(titleFile, titleOffsets, id);
+                printf("%u %s\n", id, title);
                 if (title) free(title);
             }
         }
@@ -96,9 +92,9 @@ int main(int argc, char ** argv) {
         if (node->backward_length<=500) {
             printf(":\n");
             for (size_t i=0;i < node->backward_length;i++) {
-                uint32_t offset = node->references[i+node->forward_length];
-                char * title = nodeOffsetToTitle(titleFile, nodeOffsets, titleOffsets, nodeCount, offset);
-                printf("%u %s\n", offset, title);
+                nodeRef id = node->references[i+node->forward_length];
+                char * title = getTitle(titleFile, titleOffsets, id);
+                printf("%u %s\n", id, title);
                 if (title) free(title);
             }
         } else {

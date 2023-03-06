@@ -285,24 +285,26 @@ static size_t removeSomeBackwardRefs(struct wikiNode ** nodes, size_t titleCount
     }
     return removed;
 }
-static nodeRef * getNodeOffsets(struct wikiNode ** nodes, size_t titleCount) {
+static nodeRef * getNodeIds(struct wikiNode ** nodes, size_t titleCount) {
     nodeRef offset = 0;
-    nodeRef * offsets = malloc(sizeof(nodeRef)*titleCount);
+    nodeRef id = 0;
+    nodeRef * ids = malloc(sizeof(nodeRef)*titleCount);
     for (size_t i=0;i<titleCount;i++) {
-        offsets[i] = offset;
+        ids[i] = id;
         if (!nodes[i]) continue;
         offset += sizeof(struct wikiNode)+(nodes[i]->forward_length+nodes[i]->backward_length)*sizeof(nodes[i]->references[0]);
+        id++;
     }
     fprintf(stderr, "Total node size: %u\n", offset);
-    return offsets;
+    return ids;
 }
 
-static struct wikiNode ** replaceIdsWithOffsets(struct wikiNode ** nodes, size_t titleCount, nodeRef * offsets) {
+static struct wikiNode ** replaceIdsWithNewIds(struct wikiNode ** nodes, size_t titleCount, nodeRef * ids) {
     for (size_t i=0;i<titleCount;i++) {
         struct wikiNode * node = nodes[i];
         if (!node) continue;
         for (size_t j=0;j<node->forward_length+node->backward_length;j++) {
-            node->references[j] = offsets[node->references[j]];
+            node->references[j] = ids[node->references[j]];
         }
     }
     return nodes;
@@ -346,7 +348,7 @@ int main(int argc, char **argv) {
     size_t titleCount;
     struct wikiNode ** id2node;
     size_t * titleMap;
-    nodeRef * id2nodeOffset;
+    nodeRef * id2newId;
     //char search[256];
     if (argc<4) {
         fprintf(stderr, "Usage: %s <input file> <node output file> <title output file>\n", argv[0]);
@@ -376,10 +378,9 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Removed %zu useless redirection pages\n", removeUselessRedirectionPages(id2node, titleCount));
     fprintf(stderr, "Removed %zu backward references to unreachable nodes\n", removeSomeBackwardRefs(id2node, titleCount));
 
-    id2nodeOffset = getNodeOffsets(id2node, titleCount);
-    id2node = replaceIdsWithOffsets(id2node, titleCount, id2nodeOffset);
-    fprintf(stderr, "Replaced ids with offsets\n");
-    free(id2nodeOffset);
+    id2newId = getNodeIds(id2node, titleCount);
+    id2node = replaceIdsWithNewIds(id2node, titleCount, id2newId);
+    free(id2newId);
 
     writeNodesToFile(id2node, titleCount, nodeOut);
     writeTitlesToFile(in, titleOut, id2node);

@@ -10,10 +10,14 @@
 #include "nodeutils.h"
 
 #define JSON
+#define STATS
 
-static void cleanNodes(char * nodeData, struct buffer toClean) {
-    for (size_t i=0;i<toClean.used/sizeof(nodeRef);i++) {
-        struct wikiNode * node = getNode(nodeData, toClean.u32content[i]);
+
+static void cleanNodes(struct wikiNode ** nodes, struct buffer toClean) {
+    nodeRef * buf = toClean.u32content;
+    nodeRef * bufmax = buf+(toClean.used/sizeof(nodeRef));
+    for (;buf<bufmax;buf++) {
+        struct wikiNode * node = nodes[*buf];
         node->dist_a = 0;
         node->dist_b = 0;
     }
@@ -32,10 +36,11 @@ static bool shouldChooseSideA(int distA, int distB, struct buffer A, struct buff
     if (distA==1) return true;
     if (distB==1) return false;
     if (distA==2) return true;
+//    return true;
     return A.used<=B.used;
 }
 
-static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, char * nodeData, nodeRef * nodeOffsets, size_t * titleOffsets, size_t nodeCount) {
+static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, struct wikiNode ** nodes, size_t * titleOffsets, size_t nodeCount) {
     size_t distA =1;
     size_t distB =1;
     bool match = false;
@@ -51,22 +56,22 @@ static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, char * 
     #ifdef JSON
     printf("{\"sources\":[");
     if (A.used)
-        freePrinto("%s", nodeOffsetToJSONTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)A.content));
+        freePrinto("%s", getJSONTitle(titles, titleOffsets, *(nodeRef *)A.content));
     for (size_t i=sizeof(nodeRef);i<A.used;i+=sizeof(nodeRef)) {
-        freePrint("%s", nodeOffsetToJSONTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)(A.content+i)));
+        freePrint("%s", getJSONTitle(titles, titleOffsets, *(nodeRef *)(A.content+i)));
     }
     printf("],\"destinations\":[");
     if (B.used)
-        freePrinto("%s", nodeOffsetToJSONTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)B.content));
+        freePrinto("%s", getJSONTitle(titles, titleOffsets, *(nodeRef *)B.content));
     for (size_t i=sizeof(nodeRef);i<B.used;i+=sizeof(nodeRef)) {
-        freePrint("%s", nodeOffsetToJSONTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)(B.content+i)));
+        freePrint("%s", getJSONTitle(titles, titleOffsets, *(nodeRef *)(B.content+i)));
     }
     #else
     for (size_t i=0;i<A.used;i+=sizeof(nodeRef)) {
-        printf("A: %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)(A.content+i)));
+        printf("A: %s\n", getTitle(titles, titleOffsets, *(nodeRef *)(A.content+i)));
     }
     for (size_t i=0;i<B.used;i+=sizeof(nodeRef)) {
-        printf("B: %s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, *(nodeRef *)(B.content+i)));
+        printf("B: %s\n", getTitle(titles, titleOffsets, *(nodeRef *)(B.content+i)));
     }
     #endif
     while (!match&&distA+distB<=500) {
@@ -78,7 +83,7 @@ static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, char * 
             nodeRef * content = (nodeRef *)A.content;
             if (!A.used) break;
             for (size_t i=0;i<A.used/sizeof(nodeRef);i++) {
-                struct wikiNode * node = getNode(nodeData, content[i]);
+                struct wikiNode * node = nodes[content[i]];
                 if (node->dist_a) {
                     continue;
                 }
@@ -110,7 +115,7 @@ static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, char * 
             nodeRef * content = (nodeRef *)B.content;
             if (!B.used) break;
             for (size_t i=0;i<B.used/sizeof(nodeRef);i++) {
-                struct wikiNode * node = getNode(nodeData, content[i]);
+                struct wikiNode * node = nodes[content[i]];
                 if (node->dist_b) {
                     continue;
                 }
@@ -161,12 +166,12 @@ static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, char * 
         assert(!New.used);
         while (distA>1) {
             for (size_t i=aIndex[distA-1];i<aIndex[distA];i++) {
-                struct wikiNode * node = getNode(nodeData, toCleanA.u32content[i]);
+                struct wikiNode * node = nodes[toCleanA.u32content[i]];
                 if (!node->dist_a) continue;
                 nodeRef * refs = node->references;
                 nodeRef * refMax = refs+node->forward_length;
                 for (;refs<refMax;refs++) { // this loop was hot
-                    struct wikiNode * target = getNode(nodeData, *refs);
+                    struct wikiNode * target = nodes[*refs];
                     if (target->dist_b==distB) {
                         node->dist_a = 0;
                         node->dist_b = distB+1;
@@ -191,29 +196,30 @@ static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, char * 
             bool firstNestedIteration = true;
             #endif
             for (size_t i=0;i<matches.used/sizeof(nodeRef);i++) {
-                struct wikiNode * node = getNode(nodeData, matches.u32content[i]);
+                struct wikiNode * node = nodes[matches.u32content[i]];
                 if (!node->dist_b) continue; // TODO: this messes up JSON output
                 node->dist_b = 0;
                 #ifdef JSON
                 if (!firstNestedIteration) printf("],");
                 firstNestedIteration = false;
-                freePrinto("%s:[", nodeOffsetToJSONTitle(titles, nodeOffsets, titleOffsets, nodeCount, matches.u32content[i]));
+                freePrinto("%s:[", getJSONTitle(titles, titleOffsets, matches.u32content[i]));
                 bool first = true;
                 #else
-                freePrint("%s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, matches.u32content[i]));
+                freePrint("%s\n", getTitle(titles, titleOffsets, matches.u32content[i]));
                 #endif
                 for (size_t j=0;j<node->forward_length;j++) {
-                    struct wikiNode * target = getNode(nodeData, node->references[j]);
+                    nodeRef ref = node->references[j];
+                    struct wikiNode * target = nodes[ref];
                     if (target->dist_b==distB-1) {
                         #ifdef JSON
-                        char * title = nodeOffsetToJSONTitle(titles, nodeOffsets, titleOffsets, nodeCount, (char *)target-nodeData);
+                        char * title = getJSONTitle(titles, titleOffsets, ref);
                         printf("%s", title+first);
                         first = false;
                         free(title);
                         #else
-                        freePrint("\t%s\n", nodeOffsetToTitle(titles, nodeOffsets, titleOffsets, nodeCount, (char *)target-nodeData));
+                        freePrint("\t%s\n", getTitle(titles, titleOffsets, ref));
                         #endif
-                        *(nodeRef *)bufferAdd(&New, sizeof(nodeRef)) = (char *)target-nodeData;
+                        *(nodeRef *)bufferAdd(&New, sizeof(nodeRef)) = ref;
                     }
                 }
             }
@@ -241,9 +247,9 @@ static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, char * 
     free(B.content);
     free(New.content);
     free(matches.content);
-    cleanNodes(nodeData, toCleanA);
+    cleanNodes(nodes, toCleanA);
     free(toCleanA.content);
-    cleanNodes(nodeData, toCleanB);
+    cleanNodes(nodes, toCleanB);
     free(toCleanB.content);
 }
 
@@ -253,7 +259,7 @@ int main(int argc, char ** argv) {
     size_t nodeCount = 0;
     FILE * titleFile = NULL;
     size_t titleCount = 0;
-    nodeRef * nodeOffsets = NULL;
+    struct wikiNode ** nodes = NULL;
     size_t * titleOffsets = NULL;
 
     setvbuf(stdin, NULL, _IOLBF, BUFSIZ);
@@ -277,7 +283,7 @@ int main(int argc, char ** argv) {
         return -1;
     }
 
-    nodeOffsets = getNodeOffsets(nodeData, nodeDataLength, &nodeCount);
+    nodes = getNodes(nodeData, nodeDataLength, &nodeCount);
     fprintf(stderr, "Calculated offsets for %zu nodes\n", nodeCount);
     titleOffsets = getTitleOffsets(titleFile, &titleCount);
     fprintf(stderr, "Calculated offsets for %zu titles\n", titleCount);
@@ -308,7 +314,7 @@ int main(int argc, char ** argv) {
                 fprintf(stderr, "Invalid input\n");
                 break;
             }
-            res = titleToNodeOffset(titleFile, nodeOffsets, titleOffsets, nodeCount, str+2);
+            res = titleToNodeId(titleFile, titleOffsets, nodeCount, str+2);
             if (res==(nodeRef)-1) {
                 fprintf(stderr, "Could not find %s\n", str+2);
                 break;
@@ -320,7 +326,7 @@ int main(int argc, char ** argv) {
             }
             break;
         case 'R':
-            nodeRoute(A, B, titleFile, nodeData, nodeOffsets, titleOffsets, nodeCount);
+            nodeRoute(A, B, titleFile, nodes, titleOffsets, nodeCount);
             A.used = 0;
             B.used = 0;
             break;
