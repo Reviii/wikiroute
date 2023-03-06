@@ -18,7 +18,7 @@ struct wikiNode ** getNodes(char * nodeData, size_t nodeDataLength, size_t * nod
         (*nodeCount)++;
         node = (struct wikiNode *)((char *)node + sizeof(*node) + (node->forward_length+node->backward_length)*sizeof(node->references[0]));
     }
-    return (struct wikiNode *) nodeBuf.content;
+    return (struct wikiNode **) nodeBuf.content;
 }
 
 size_t * getTitleOffsets(FILE * f, size_t * titleCount) {
