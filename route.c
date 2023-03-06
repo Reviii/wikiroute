@@ -13,16 +13,6 @@
 #define STATS
 
 
-static void cleanNodes(struct wikiNode ** nodes, struct buffer toClean) {
-    nodeRef * buf = toClean.u32content;
-    nodeRef * bufmax = buf+(toClean.used/sizeof(nodeRef));
-    for (;buf<bufmax;buf++) {
-        struct wikiNode * node = nodes[*buf];
-        node->dist_a = 0;
-        node->dist_b = 0;
-    }
-}
-
 static void freePrint(char * format, char * str) {
     printf(format, str);
     free(str);
@@ -40,7 +30,7 @@ static bool shouldChooseSideA(int distA, int distB, struct buffer A, struct buff
     return A.used<=B.used;
 }
 
-static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, struct wikiNode ** nodes, size_t * titleOffsets, size_t nodeCount) {
+static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs, unsigned char * distBs, FILE * titles, struct wikiNode ** nodes, size_t * titleOffsets, size_t nodeCount) {
     size_t distA =1;
     size_t distB =1;
     bool match = false;
@@ -83,16 +73,17 @@ static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, struct 
             nodeRef * content = (nodeRef *)A.content;
             if (!A.used) break;
             for (size_t i=0;i<A.used/sizeof(nodeRef);i++) {
-                struct wikiNode * node = nodes[content[i]];
-                if (node->dist_a) {
+                nodeRef ref = content[i];
+                struct wikiNode * node = nodes[ref];
+                if (distAs[ref]) {
                     continue;
                 }
-                if (node->dist_b) {
+                if (distBs[ref]) {
                     match = true;
-                    *(nodeRef *)bufferAdd(&matches, sizeof(nodeRef)) = content[i];
+                    *(nodeRef *)bufferAdd(&matches, sizeof(nodeRef)) = ref;
                 }
                 newcount++;
-                node->dist_a = distA;
+                distAs[ref] = distA;
                 if (match) continue;
                 memcpy(
                     __builtin_assume_aligned(bufferAdd(&New, node->forward_length*sizeof(nodeRef)), sizeof(nodeRef)),
@@ -115,16 +106,17 @@ static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, struct 
             nodeRef * content = (nodeRef *)B.content;
             if (!B.used) break;
             for (size_t i=0;i<B.used/sizeof(nodeRef);i++) {
-                struct wikiNode * node = nodes[content[i]];
-                if (node->dist_b) {
+                nodeRef ref = content[i];
+                struct wikiNode * node = nodes[ref];
+                if (distBs[ref]) {
                     continue;
                 }
-                if (node->dist_a) {
+                if (distAs[ref]) {
                     match = true;
                     *(nodeRef *)bufferAdd(&matches, sizeof(nodeRef)) = content[i];
                 }
                 newcount++;
-                node->dist_b = distB;
+                distBs[ref] = distB;
                 if (match) continue;
                 memcpy(
                     __builtin_assume_aligned(bufferAdd(&New, node->backward_length*sizeof(nodeRef)), sizeof(nodeRef)),
@@ -166,15 +158,15 @@ static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, struct 
         assert(!New.used);
         while (distA>1) {
             for (size_t i=aIndex[distA-1];i<aIndex[distA];i++) {
-                struct wikiNode * node = nodes[toCleanA.u32content[i]];
-                if (!node->dist_a) continue;
+                nodeRef ref = toCleanA.u32content[i];
+                struct wikiNode * node = nodes[ref];
+                if (!distAs[ref]) continue;
                 nodeRef * refs = node->references;
                 nodeRef * refMax = refs+node->forward_length;
                 for (;refs<refMax;refs++) { // this loop was hot
-                    struct wikiNode * target = nodes[*refs];
-                    if (target->dist_b==distB) {
-                        node->dist_a = 0;
-                        node->dist_b = distB+1;
+                    if (distBs[*refs]==distB) {
+                        distAs[ref] = 0;
+                        distBs[ref] = distB+1;
                         break;
                     }
                 }
@@ -196,30 +188,30 @@ static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, struct 
             bool firstNestedIteration = true;
             #endif
             for (size_t i=0;i<matches.used/sizeof(nodeRef);i++) {
-                struct wikiNode * node = nodes[matches.u32content[i]];
-                if (!node->dist_b) continue; // TODO: this messes up JSON output
-                node->dist_b = 0;
+                nodeRef ref = matches.u32content[i];
+                struct wikiNode * node = nodes[ref];
+                if (!distBs[ref]) continue;
+                distBs[ref] = 0;
                 #ifdef JSON
                 if (!firstNestedIteration) printf("],");
                 firstNestedIteration = false;
-                freePrinto("%s:[", getJSONTitle(titles, titleOffsets, matches.u32content[i]));
+                freePrinto("%s:[", getJSONTitle(titles, titleOffsets, ref));
                 bool first = true;
                 #else
-                freePrint("%s\n", getTitle(titles, titleOffsets, matches.u32content[i]));
+                freePrint("%s\n", getTitle(titles, titleOffsets, ref));
                 #endif
                 for (size_t j=0;j<node->forward_length;j++) {
-                    nodeRef ref = node->references[j];
-                    struct wikiNode * target = nodes[ref];
-                    if (target->dist_b==distB-1) {
+                    nodeRef target = node->references[j];
+                    if (distBs[target]==distB-1) {
                         #ifdef JSON
-                        char * title = getJSONTitle(titles, titleOffsets, ref);
+                        char * title = getJSONTitle(titles, titleOffsets, target);
                         printf("%s", title+first);
                         first = false;
                         free(title);
                         #else
-                        freePrint("\t%s\n", getTitle(titles, titleOffsets, ref));
+                        freePrint("\t%s\n", getTitle(titles, titleOffsets, target));
                         #endif
-                        *(nodeRef *)bufferAdd(&New, sizeof(nodeRef)) = ref;
+                        *(nodeRef *)bufferAdd(&New, sizeof(nodeRef)) = target;
                     }
                 }
             }
@@ -247,9 +239,9 @@ static void nodeRoute(struct buffer oA, struct buffer oB, FILE * titles, struct 
     free(B.content);
     free(New.content);
     free(matches.content);
-    cleanNodes(nodes, toCleanA);
+    memset(distAs, 0, nodeCount);
     free(toCleanA.content);
-    cleanNodes(nodes, toCleanB);
+    memset(distBs, 0, nodeCount);
     free(toCleanB.content);
 }
 
@@ -270,7 +262,7 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
-    nodeData = mapFile(argv[1], O_RDONLY, PROT_READ | PROT_WRITE, MAP_PRIVATE, &nodeDataLength);
+    nodeData = mapFile(argv[1], O_RDONLY, PROT_READ, MAP_PRIVATE, &nodeDataLength);
     if (!nodeData) {
         fprintf(stderr, "Failed to mmap node file\n");
         return -1;
@@ -292,6 +284,8 @@ int main(int argc, char ** argv) {
 
     struct buffer A = bufferCreate();
     struct buffer B = bufferCreate();
+    unsigned char * distAs = calloc(1,nodeCount);
+    unsigned char * distBs = calloc(1,nodeCount);
 
 
     while (true) {
@@ -326,7 +320,7 @@ int main(int argc, char ** argv) {
             }
             break;
         case 'R':
-            nodeRoute(A, B, titleFile, nodes, titleOffsets, nodeCount);
+            nodeRoute(A, B, distAs, distBs, titleFile, nodes, titleOffsets, nodeCount);
             A.used = 0;
             B.used = 0;
             break;
