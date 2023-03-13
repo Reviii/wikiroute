@@ -40,7 +40,6 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
     struct buffer B = bufferDup(oB);
     struct buffer originalA = bufferDup(oA);
     struct buffer toCleanA = bufferCreate();
-    struct buffer toCleanB = bufferCreate();
     size_t aIndex[256];
     aIndex[0] = 0;
     #ifdef JSON
@@ -74,17 +73,23 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
             if (!A.used) break;
             for (size_t i=0;i<A.used/sizeof(nodeRef);i++) {
                 nodeRef ref = content[i];
-                struct wikiNode * node = nodes[ref];
+                if (distBs[ref]) {
+                    match = true;
+                    break;
+                }
+            }
+            for (size_t i=0;i<A.used/sizeof(nodeRef);i++) {
+                nodeRef ref = content[i];
                 if (distAs[ref]) {
                     continue;
                 }
                 if (distBs[ref]) {
-                    match = true;
                     *(nodeRef *)bufferAdd(&matches, sizeof(nodeRef)) = ref;
                 }
                 newcount++;
                 distAs[ref] = distA;
                 if (match) continue;
+                struct wikiNode * node = nodes[ref];
                 memcpy(
                     __builtin_assume_aligned(bufferAdd(&New, node->forward_length*sizeof(nodeRef)), sizeof(nodeRef)),
                     __builtin_assume_aligned(node->references, sizeof(nodeRef)),
@@ -107,17 +112,23 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
             if (!B.used) break;
             for (size_t i=0;i<B.used/sizeof(nodeRef);i++) {
                 nodeRef ref = content[i];
-                struct wikiNode * node = nodes[ref];
+                if (distAs[ref]) {
+                    match = true;
+                    break;
+                }
+            }
+            for (size_t i=0;i<B.used/sizeof(nodeRef);i++) {
+                nodeRef ref = content[i];
                 if (distBs[ref]) {
                     continue;
                 }
                 if (distAs[ref]) {
-                    match = true;
                     *(nodeRef *)bufferAdd(&matches, sizeof(nodeRef)) = content[i];
                 }
                 newcount++;
                 distBs[ref] = distB;
                 if (match) continue;
+                struct wikiNode * node = nodes[ref];
                 memcpy(
                     __builtin_assume_aligned(bufferAdd(&New, node->backward_length*sizeof(nodeRef)), sizeof(nodeRef)),
                     __builtin_assume_aligned(node->references+node->forward_length, sizeof(nodeRef)),
@@ -125,11 +136,6 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
                 );
             }
             distB++;
-            memcpy(
-                __builtin_assume_aligned(bufferAdd(&toCleanB, B.used), sizeof(nodeRef)),
-                __builtin_assume_aligned(B.content, sizeof(nodeRef)),
-                B.used
-            );
             struct buffer tmp = B;
             B = New;
             New = tmp;
@@ -242,7 +248,6 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
     memset(distAs, 0, nodeCount);
     free(toCleanA.content);
     memset(distBs, 0, nodeCount);
-    free(toCleanB.content);
 }
 
 int main(int argc, char ** argv) {
