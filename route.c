@@ -34,7 +34,6 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
     size_t distA =1;
     size_t distB =1;
     bool match = false;
-    struct buffer matches = bufferCreate();
     struct buffer New = bufferCreate();
     struct buffer A = bufferDup(oA);
     struct buffer B = bufferDup(oB);
@@ -83,9 +82,6 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
                 if (distAs[ref]) {
                     continue;
                 }
-                if (distBs[ref]) {
-                    *(nodeRef *)bufferAdd(&matches, sizeof(nodeRef)) = ref;
-                }
                 newcount++;
                 distAs[ref] = distA;
                 if (match) continue;
@@ -121,9 +117,6 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
                 nodeRef ref = content[i];
                 if (distBs[ref]) {
                     continue;
-                }
-                if (distAs[ref]) {
-                    *(nodeRef *)bufferAdd(&matches, sizeof(nodeRef)) = content[i];
                 }
                 newcount++;
                 distBs[ref] = distB;
@@ -181,8 +174,8 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
             distB++;
         }
 
-        free(matches.content);
-        matches = originalA;
+        // TODO: maybe rename?
+        struct buffer matches = originalA;
 
         #ifdef JSON
         bool firstIteration = true;
@@ -238,13 +231,13 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
         #else
         putchar('\n');
         #endif
+        free(matches.content);
     }
 
 
     free(A.content);
     free(B.content);
     free(New.content);
-    free(matches.content);
     memset(distAs, 0, nodeCount);
     free(toCleanA.content);
     memset(distBs, 0, nodeCount);
