@@ -62,6 +62,10 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
         printf("B: %s\n", getTitle(titles, titleOffsets, *(nodeRef *)(B.content+i)));
     }
     #endif
+    for (size_t i=0;i<B.used;i+=sizeof(nodeRef)) {
+        nodeRef ref = *(nodeRef *)(B.content+i);
+        distBs[ref] = distB;
+    }
     while (!match&&distA+distB<=500) {
 #ifdef STATS
         fprintf(stderr, "A:%zu B:%zu\n", A.used/sizeof(nodeRef), B.used/sizeof(nodeRef));
@@ -74,6 +78,7 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
                 nodeRef ref = content[i];
                 if (distBs[ref]) {
                     match = true;
+                    distB = distBs[ref]+1;
                     break;
                 }
             }
@@ -115,18 +120,17 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
             }
             for (size_t i=0;i<B.used/sizeof(nodeRef);i++) {
                 nodeRef ref = content[i];
-                if (distBs[ref]) {
-                    continue;
-                }
                 newcount++;
-                distBs[ref] = distB;
                 if (match) continue;
                 struct wikiNode * node = nodes[ref];
-                memcpy(
-                    __builtin_assume_aligned(bufferAdd(&New, node->backward_length*sizeof(nodeRef)), sizeof(nodeRef)),
-                    __builtin_assume_aligned(node->references+node->forward_length, sizeof(nodeRef)),
-                    node->backward_length*sizeof(nodeRef)
-                );
+                size_t len = node->forward_length+node->backward_length;
+                bufferExpand(&New, node->backward_length*sizeof(nodeRef));
+                for (size_t i=node->forward_length;i<len;i++) {
+                    nodeRef target = node->references[i];
+                    if (distBs[target]) continue; // this affect side choosing logic
+                    *(nodeRef *)bufferAddUnsafe(&New, sizeof(nodeRef)) = target;
+                    distBs[target] = distB+1;
+                }
             }
             distB++;
             struct buffer tmp = B;
