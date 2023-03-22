@@ -24,9 +24,8 @@ static void freePrinto(char * format, char * str) {
 
 static bool shouldChooseSideA(int distA, int distB, struct buffer A, struct buffer B) {
     if (distA==1) return true;
-    if (distB==1) return false;
-    if (distA==2) return true;
-//    return true;
+    if (distA>=254) return false;
+    if (distB>=254) return true;
     return A.used<=B.used;
 }
 
@@ -108,7 +107,7 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
                 bufferExpand(&New, len*sizeof(nodeRef));
                 for (size_t i=0;i<len;i++) {
                     nodeRef target = node->references[i];
-                    if (distAs[target]) continue; // this affect side choosing logic
+                    if (distAs[target]) continue;
                     *(nodeRef *)bufferAddUnsafe(&New, sizeof(nodeRef)) = target;
                     distAs[target] = distA+1;
                 }
@@ -144,7 +143,7 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
                 bufferExpand(&New, node->backward_length*sizeof(nodeRef));
                 for (size_t i=node->forward_length;i<len;i++) {
                     nodeRef target = node->references[i];
-                    if (distBs[target]) continue; // this affect side choosing logic
+                    if (distBs[target]) continue;
                     *(nodeRef *)bufferAddUnsafe(&New, sizeof(nodeRef)) = target;
                     distBs[target] = distB+1;
                 }
@@ -220,8 +219,10 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
                 #else
                 freePrint("%s\n", getTitle(titles, titleOffsets, ref));
                 #endif
-                for (size_t j=0;j<node->forward_length;j++) {
-                    nodeRef target = node->references[j];
+                size_t len = node->forward_length;
+                nodeRef * refs = node->references;
+                for (size_t j=0;j<len;j++) {
+                    nodeRef target = refs[j];
                     if (distBs[target]==distB-1) {
                         #ifdef JSON
                         char * title = getJSONTitle(titles, titleOffsets, target);
