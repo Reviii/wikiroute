@@ -38,9 +38,10 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
     struct buffer A = bufferDup(oA);
     struct buffer B = bufferDup(oB);
     struct buffer originalA = bufferDup(oA);
-    struct buffer toCleanA = bufferCreate();
+    struct buffer visitedA = bufferCreate();
     size_t aIndex[256];
     aIndex[0] = 0;
+    aIndex[1] = 0;
     #ifdef JSON
     printf("{\"sources\":[");
     if (A.used)
@@ -62,9 +63,25 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
         printf("B: %s\n", getTitle(titles, titleOffsets, *(nodeRef *)(B.content+i)));
     }
     #endif
-    for (size_t i=0;i<B.used;i+=sizeof(nodeRef)) {
-        nodeRef ref = *(nodeRef *)(B.content+i);
-        distBs[ref] = distB;
+    {
+        size_t write = 0;
+        for (size_t i=0;i<A.used;i+=sizeof(nodeRef)) {
+            nodeRef ref = *(nodeRef *)(A.content+i);
+            if (distAs[ref]) continue;
+            *(nodeRef *)(A.content+write) = ref;
+            write += sizeof(nodeRef);
+            distAs[ref] = distA;
+        }
+        A.used = write;
+        write = 0;
+        for (size_t i=0;i<B.used;i+=sizeof(nodeRef)) {
+            nodeRef ref = *(nodeRef *)(B.content+i);
+            if (distBs[ref]) continue;
+            *(nodeRef *)(B.content+write) = ref;
+            write += sizeof(nodeRef);
+            distBs[ref] = distB;
+        }
+        B.used = write;
     }
     while (!match&&distA+distB<=500) {
 #ifdef STATS
@@ -84,26 +101,25 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
             }
             for (size_t i=0;i<A.used/sizeof(nodeRef);i++) {
                 nodeRef ref = content[i];
-                if (distAs[ref]) {
-                    continue;
-                }
                 newcount++;
-                distAs[ref] = distA;
                 if (match) continue;
                 struct wikiNode * node = nodes[ref];
-                memcpy(
-                    __builtin_assume_aligned(bufferAdd(&New, node->forward_length*sizeof(nodeRef)), sizeof(nodeRef)),
-                    __builtin_assume_aligned(node->references, sizeof(nodeRef)),
-                    node->forward_length*sizeof(nodeRef)
-                );
+                size_t len = node->forward_length;
+                bufferExpand(&New, len*sizeof(nodeRef));
+                for (size_t i=0;i<len;i++) {
+                    nodeRef target = node->references[i];
+                    if (distAs[target]) continue; // this affect side choosing logic
+                    *(nodeRef *)bufferAddUnsafe(&New, sizeof(nodeRef)) = target;
+                    distAs[target] = distA+1;
+                }
             }
-            aIndex[distA] = toCleanA.used/sizeof(nodeRef);
             distA++;
             memcpy(
-                __builtin_assume_aligned(bufferAdd(&toCleanA, A.used), sizeof(nodeRef)),
+                __builtin_assume_aligned(bufferAdd(&visitedA, A.used), sizeof(nodeRef)),
                 __builtin_assume_aligned(A.content, sizeof(nodeRef)),
                 A.used
             );
+            aIndex[distA] = visitedA.used/sizeof(nodeRef);
             struct buffer tmp = A;
             A = New;
             New = tmp;
@@ -115,6 +131,7 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
                 nodeRef ref = content[i];
                 if (distAs[ref]) {
                     match = true;
+                    distA = distAs[ref]+1;
                     break;
                 }
             }
@@ -161,7 +178,7 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
         assert(!New.used);
         while (distA>1) {
             for (size_t i=aIndex[distA-1];i<aIndex[distA];i++) {
-                nodeRef ref = toCleanA.u32content[i];
+                nodeRef ref = visitedA.u32content[i];
                 struct wikiNode * node = nodes[ref];
                 if (!distAs[ref]) continue;
                 nodeRef * refs = node->references;
@@ -243,7 +260,7 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
     free(B.content);
     free(New.content);
     memset(distAs, 0, nodeCount);
-    free(toCleanA.content);
+    free(visitedA.content);
     memset(distBs, 0, nodeCount);
 }
 
