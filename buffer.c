@@ -21,3 +21,10 @@ void bufferCompact(struct buffer * buf) {
     buf->content = realloc(buf->content, buf->_size);
     assert(buf->content);
 }
+void bufferExpand(struct buffer * buf, size_t amount) {
+    size_t newsize_min = buf->used+amount;
+    if (buf->_size<newsize_min) {
+        while (buf->_size<newsize_min) buf->_size *= 2;
+        buf->content = realloc(buf->content,buf->_size);
+    }
+}

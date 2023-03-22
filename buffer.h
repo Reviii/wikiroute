@@ -13,15 +13,21 @@ struct buffer {
 struct buffer bufferCreate();
 struct buffer bufferDup(struct buffer buf);
 void bufferCompact(struct buffer * buf);
+void bufferExpand(struct buffer * buf, size_t amount);
 static inline char * bufferAdd(struct buffer * buf, size_t amount) {
     size_t res = buf->used;
     while (buf->used+amount>buf->_size) {
-        buf->_size *= 2;
+        do { buf->_size *= 2; } while (buf->used+amount>buf->_size);
         buf->content = realloc(buf->content, buf->_size);
         assert(buf->content);
     }
     buf->used += amount;
     return (buf->content + res);
+}
+[[maybe_unused]] static inline char * bufferAddUnsafe(struct buffer * buf, size_t amount) {
+    size_t res = buf->used;
+    buf->used += amount;
+    return (buf->content+res);
 }
 
 /* examples
