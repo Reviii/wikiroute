@@ -15,7 +15,7 @@ graph.style.display = "flex"
 graph.style.minWidth = "min-content"
 graph.id = "graph"
 document.body.appendChild(graph)
-addEventListener("resize", ()=>drawGraph(window.route))
+addEventListener("resize", ()=>updateEdges(window.route))
 let pre = document.createElement("pre")
 document.body.appendChild(pre)
 
@@ -148,15 +148,22 @@ function drawGraph(route) {
         sources = dests
     }
     graph.style.display = "flex";
-    sources = new Set(route.sources);
-    let layer = 0;
-    let path = ""
+
     let svg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
     svg.style.position="absolute"
     svg.style.pointerEvents="none"
+    graph.appendChild(svg)
+    updateEdges(route)
+}
+function updateEdges(route) {
+    let svg = graph.getElementsByTagName("svg")[0]
+    if (!document.getElementById("showGraph").checked||!route||!svg) return
+    svg.innerHTML = ""
     svg.setAttribute("width", graph.getBoundingClientRect().width)
     svg.setAttribute("height", graph.getBoundingClientRect().height)
-    graph.appendChild(svg)
+    let sources = new Set(route.sources);
+    let layer = 0;
+    let path = ""
     for (;sources.size;layer++) {
         let dests = new Set();
         let layerDiv = graph.children[layer]
