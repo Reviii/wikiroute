@@ -2,7 +2,8 @@
 <html>
 <head><title>wikiroute</title><style>pre > div { width: max-content; } #graph > div > div { border: solid 1px; border-bottom: 0px; max-width: 30ch; } #graph > div > div:last-child { border-bottom: 1px solid; } #graph > div { padding: 0 32px; }</style><meta name="viewport" content="width=device-width, initial-scale=1"></head>
 <body>
-<label>Source:<input id="source"></label><button onclick="reverse();this.blur()" tabindex=1><svg width="12" height="12"><polygon points="0 4 6 4 3 0" /><polygon points="2 12 4 12 4 4 2 4" /><polygon points="8 8 10 8 10 0 8 0" /><polygon points="6 8 9 12 12 8" /></svg></button><br>
+<label>Language:<select id="lang"><option value="en">English</option></select></label><br>
+<label>Source:<input id="source"></label><button onclick="reverse();this.blur()" tabindex=1 aria-label="Swap source and destination"><svg width="12" height="12"><polygon points="0 4 6 4 3 0" /><polygon points="2 12 4 12 4 4 2 4" /><polygon points="8 8 10 8 10 0 8 0" /><polygon points="6 8 9 12 12 8" /></svg></button><br>
 <label>Destination:<input id="dest"></label><br>
 <label>Show graph:<input id="showGraph" type="checkbox" onclick="drawGraph(route)"></label><br>
 <button onclick="handleInput()">Route</button>
@@ -20,7 +21,7 @@ let pre = document.createElement("pre")
 document.body.appendChild(pre)
 
 function handleInput() { 
-    getRoute(document.getElementById('source').value, document.getElementById('dest').value).catch(e=>err.innerText=e.message)
+    getRoute(document.getElementById('source').value, document.getElementById('dest').value, document.getElementById("lang").value).catch(e=>err.innerText=e.message)
 }
 document.body.onkeydown = e => {if(e.key==="Enter"&&e.target.nodeName!=="BUTTON") handleInput()}
 
@@ -29,7 +30,7 @@ function firstUp(str) {
     return str.slice(0,1).toUpperCase()+str.slice(1)
 }
 
-async function getRoute(source, dest) {
+async function getRoute(source, dest, lang) {
     if (window.control) {
         if (confirm("Abort current request?")) {
             window.control.abort()
@@ -38,7 +39,7 @@ async function getRoute(source, dest) {
         }
         return
     }
-    if (window.route&&firstUp(source)===firstUp(window.route.sources[0])&&firstUp(dest)===firstUp(window.route.destinations[0])) {
+    if (window.route&&firstUp(source)===firstUp(window.route.sources[0])&&firstUp(dest)===firstUp(window.route.destinations[0])&&window.route.lang===lang) {
        window.route=JSON.parse(oroute)
        draw(window.route)
        drawGraph(window.route)
@@ -47,10 +48,11 @@ async function getRoute(source, dest) {
     graph.innerHTML = ""
     pre.innerText = "Waiting for response"
     err.innerText = ""
+    window.route = null
     window.control = new AbortController()
     let res;
     try {
-        res = await fetch("wikiroute?source="+encodeURIComponent(source)+"&dest="+encodeURIComponent(dest), {signal:control.signal})
+        res = await fetch("wikiroute?source="+encodeURIComponent(source)+"&dest="+encodeURIComponent(dest)+"&lang="+encodeURIComponent(lang), {signal:control.signal})
     } finally {
         window.control = undefined
         pre.innerText = ""
@@ -63,6 +65,7 @@ async function getRoute(source, dest) {
     if (route.destinations.length===0) {
         err.innerText += "Destination '"+dest+"' not found\n"
     }
+    route.lang = lang;
     route.forward = route.route
     delete route.route
     addBackward(route)
@@ -155,6 +158,7 @@ function drawGraph(route) {
     graph.appendChild(svg)
     updateEdges(route)
 }
+
 function updateEdges(route) {
     let svg = graph.getElementsByTagName("svg")[0]
     if (!document.getElementById("showGraph").checked||!route||!svg) return
