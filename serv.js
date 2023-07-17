@@ -73,6 +73,8 @@ const server = http.createServer(async (req, res) => {
             return;
         }*/
         try {
+        res.setHeader("Access-Control-Allow-Origin","*");
+        res.setHeader("Content-Type","application/json");
         for (let i=0;i<search.length;i++) {
             let [key, value] = search[i].split("=", 2).map(decodeURIComponent);
             if (key==="source") sources = value.split("|");
@@ -82,25 +84,36 @@ const server = http.createServer(async (req, res) => {
             let data = JSON.parse(await getData(req));
             if (Array.isArray(data.sources)) sources = data.sources.map(a=>a+'');
             if (Array.isArray(data.sources)) dests = data.dests.map(a=>a+'');
+        } else if (req.method==="OPTIONS") {
+            res.removeHeader("Content-Type");
+            res.writeHead(200, {"Access-Control-Allow-Methods":"GET, HEAD, POST, OPTIONS"});
+            res.end();
+            return;
+        } else if (!(req.method==="GET"||req.method==="HEAD")) {
+            res.writeHead(405, {"Allow":"GET, HEAD, POST, OPTIONS"})
+            res.end('{"error":"Method not allowed"}');
+            return;
         }
+
         if (sources===undefined||dests===undefined) {
-            res.writeHead(400, {"Content-Type": "text/plain"});
-            res.end("Invalid query params");
+            res.writeHead(400);
+            res.end('{"error":"Sources or destinations not specified"}');
             return;
         }
         sources = sources.map(a=>a.split("\n").join("").split("\0").join(""));
         dests = dests.map(a=>a.split("\n").join("").split("\0").join(""));
-        res.writeHead(200, {"Content-Type": "application/json", "Access-Control-Allow-Origin":"*"});
         let date = Date.now();
-        let len = queue.length+1;
         let route = await wikiroute("A "+sources.join("\nA ")+"\nB "+dests.join("\nB ")+"\nR\n", ()=>req.socket.destroyed);
-        process.stderr.write("Queue time: "+(Date.now()-date)+"/"+len+"\n");
+        process.stderr.write("Queue time: "+(Date.now()-date)+"\n");
         res.end(route);
         } catch(err) {
             res.end('{"error":"Internal Server Error"}');
-            console.log(err.stack);
+            if (err.message==="aborted") {
+                console.log("Error in wikiroute req:",err.stack);
+            } else {
+                console.log(err.stack);
+            }
         }
-//        ratelimit.ratelimitout(ip);
     } else if (path==="/") {
         res.writeHead(200, {"Content-Type": "text/html"});
         res.end(homepage);
