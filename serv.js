@@ -71,15 +71,6 @@ function createInstance(lang, nodeFile, titleFile, logFile) {
     me.handleQueue = handleQueue;
     instancesByLang[lang] = me;
 }
-function getData(req) {
-    req.setEncoding('utf-8');
-    let data ='';
-    req.on('data',d=>data+=d);
-    return new Promise((resolve,reject)=>{
-        req.on('end',()=>resolve(data));
-        req.on('error',e=>reject(e));
-    });
-}
 function wikiroute(lang, inp, shouldAbort) {
     return new Promise((resolve, reject) => {
         let instance = instancesByLang[lang];
@@ -88,6 +79,20 @@ function wikiroute(lang, inp, shouldAbort) {
         queue.push({inp, shouldAbort, resolve, reject});
         process.stderr.write(lang+": "+queue.length+"\n");
         if (queue.length===1) instance.handleQueue();
+    });
+}
+function getData(req,maxLen) {
+    req.setEncoding('utf-8');
+    let data ='';
+    req.on('data',d=>{
+        if (data!==null) {
+            data+=d;
+            if (data.length>maxLen) data=null
+        }
+    });
+    return new Promise((resolve,reject)=>{
+        req.on('end',()=>resolve(data));
+        req.on('error',e=>reject(e));
     });
 }
 
@@ -119,7 +124,19 @@ const server = http.createServer(async (req, res) => {
         }
 
         if (req.method==="POST") {
-            let data = JSON.parse(await getData(req));
+            let data = await getData(req,10E6);
+            if (data===null) {
+                res.writeHead(413)
+                res.end('{"error":"Request content too large"}');
+                return;
+            }
+            try {
+                data = JSON.parse(data);
+            } catch(e) {
+                res.writeHead(400)
+                res.end(JSON.stringify({error: "Unable to parse JSON: "+e.message}));
+                return;
+            }
             if (Array.isArray(data.sources)) sources = data.sources.map(a=>a+'');
             if (Array.isArray(data.sources)) dests = data.dests.map(a=>a+'');
         } else if (req.method==="OPTIONS") {
