@@ -78,7 +78,7 @@ int main(int argc, char ** argv) {
     nodes = getNodesAndCheck(nodeData, nodeDataLength, &nodeCount);
     if (!nodes) return 1;
     printf("Calculated offsets for %zu nodes\n", nodeCount);
-    titleOffsets = getTitleOffsets(titleFile, &titleCount);
+    titleOffsets = getTitleOffsetsAndCheck(titleFile, &titleCount);
     if (!titleOffsets) return 2;
     printf("Calculated offsets for %zu titles\n", titleCount);
     if (titleCount!=nodeCount) {

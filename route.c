@@ -29,7 +29,7 @@ static bool shouldChooseSideA(int distA, int distB, struct buffer A, struct buff
     return A.used<=B.used;
 }
 
-static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs, unsigned char * distBs, FILE * titles, struct wikiNode ** nodes, size_t * titleOffsets, size_t nodeCount) {
+static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs, unsigned char * distBs, char * titles, struct wikiNode ** nodes, size_t * titleOffsets, size_t nodeCount) {
     size_t distA =1;
     size_t distB =1;
     bool match = false;
@@ -269,7 +269,8 @@ int main(int argc, char ** argv) {
     char * nodeData = NULL;
     size_t nodeDataLength = 0;
     size_t nodeCount = 0;
-    FILE * titleFile = NULL;
+    char * titleData = NULL;
+    size_t titleDataLength = 0;
     size_t titleCount = 0;
     struct wikiNode ** nodes = NULL;
     size_t * titleOffsets = NULL;
@@ -289,15 +290,16 @@ int main(int argc, char ** argv) {
     }
     fprintf(stderr, "Mmapped %zu bytes\n", nodeDataLength);
 
-    titleFile = fopen(argv[2], "r");
-    if (!titleFile) {
-        perror("Failed to open title file");
+    titleData = mapFile(argv[2], O_RDONLY, PROT_READ, MAP_PRIVATE, &titleDataLength);
+    if (!titleData) {
+        fprintf(stderr, "Failed to mmap title file\n");
         return -1;
     }
 
+
     nodes = getNodes(nodeData, nodeDataLength, &nodeCount);
     fprintf(stderr, "Calculated offsets for %zu nodes\n", nodeCount);
-    titleOffsets = getTitleOffsets(titleFile, &titleCount);
+    titleOffsets = getTitleOffsets(titleData, titleDataLength, &titleCount);
     fprintf(stderr, "Calculated offsets for %zu titles\n", titleCount);
     assert(titleCount == nodeCount);
 
@@ -328,7 +330,7 @@ int main(int argc, char ** argv) {
                 fprintf(stderr, "Invalid input\n");
                 break;
             }
-            res = titleToNodeId(titleFile, titleOffsets, nodeCount, str+2);
+            res = titleToNodeId(titleData, titleOffsets, nodeCount, str+2);
             if (res==(nodeRef)-1) {
                 fprintf(stderr, "Could not find %s\n", str+2);
                 break;
@@ -340,7 +342,7 @@ int main(int argc, char ** argv) {
             }
             break;
         case 'R':
-            nodeRoute(A, B, distAs, distBs, titleFile, nodes, titleOffsets, nodeCount);
+            nodeRoute(A, B, distAs, distBs, titleData, nodes, titleOffsets, nodeCount);
             A.used = 0;
             B.used = 0;
             break;

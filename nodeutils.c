@@ -21,35 +21,33 @@ struct wikiNode ** getNodes(char * nodeData, size_t nodeDataLength, size_t * nod
     return (struct wikiNode **) nodeBuf.content;
 }
 
-size_t * getTitleOffsets(FILE * f, size_t * titleCount) {
+size_t * getTitleOffsets(char * titleData, size_t titleDataLength, size_t * titleCount) {
     size_t offset = 0;
     struct buffer offsetBuf = bufferCreate();
     *titleCount = 0;
     *(size_t *)bufferAdd(&offsetBuf, sizeof(size_t)) = 0;
-    iterateFile(f, c,
-        if (c=='\n') {
+    for (size_t i=0;i<titleDataLength;i++) {
+        if (titleData[i]=='\n') {
             *(size_t *)bufferAdd(&offsetBuf, sizeof(size_t)) = offset+1;
             (*titleCount)++;
         }
         offset++;
-    )
+    }
     return (size_t *) offsetBuf.content;
 }
 
-char * getTitle(FILE * titles, size_t * titleOffsets, size_t id) {
-    char * title = malloc(256);
-    size_t titleLength = 256;
-    fseek(titles, titleOffsets[id], SEEK_SET);
-    getline(&title, &titleLength, titles);
-    title[strlen(title)-1] = '\0';
+char * getTitle(char * titles, size_t * titleOffsets, size_t id) {
+    size_t titleLength = titleOffsets[id+1]-titleOffsets[id];
+    char * title = malloc(titleLength);
+    memcpy(title, titles+titleOffsets[id], titleLength-1);
+    title[titleLength-1] = '\0';
     return title;
 }
 
-char * getJSONTitle(FILE * titles, size_t * titleOffsets, size_t id) {
+char * getJSONTitle(char * titles, size_t * titleOffsets, size_t id) {
     size_t titleLength = titleOffsets[id+1]-titleOffsets[id];
     char * title = malloc(titleLength+3); // ,"title"
-    fseek(titles, titleOffsets[id], SEEK_SET);
-    fread(title+2, titleLength-1, 1, titles);
+    memcpy(title+2, titles+titleOffsets[id], titleLength-1);
     size_t toEscape = 0;
     for (size_t i=0;i<titleLength-1;i++) {
         switch (title[i+2]) {
@@ -136,7 +134,7 @@ void normalizeTitle(char * title) {
     }
 }
 
-nodeRef titleToNodeId(FILE * titles, size_t * titleOffsets, size_t nodeCount, char * title) {
+nodeRef titleToNodeId(char * titles, size_t * titleOffsets, size_t nodeCount, char * title) {
     ssize_t first, middle, last;
     first = 0;
     last = nodeCount - 1;
