@@ -13,7 +13,7 @@ int main(int argc, char ** argv) {
         fprintf(stderr, "Usage: feed sql data from stdin\n");
         return 1;
     }
-    enum fieldType types[] = {TYPE_INT,TYPE_INT,TYPE_STR,TYPE_INT};
+    enum fieldType types[] = {TYPE_INT,TYPE_INT,TYPE_STR,TYPE_INT,TYPE_IGNORE};
     parseSql(stdin, startStr, types, sizeof(types)/sizeof(types[0]), &printRecord);
     return 0;
 }

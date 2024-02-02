@@ -34,7 +34,7 @@ void parseSql(FILE * in, const char * startStr, const enum fieldType * fieldType
             if (len==(int)strlen(startStr)) {
                 started = true;
                 len = 1; // The first entry doesn't have a preceding comma
-                fprintf(stderr, "started new line\n");
+//                fprintf(stderr, "started new line\n");
             }
             continue;
         }
