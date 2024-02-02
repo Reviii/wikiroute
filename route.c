@@ -11,7 +11,7 @@
 
 #define JSON
 #define STATS
-
+//#define STRICT_IO
 
 static void freePrint(char * format, char * str) {
     printf(format, str);
@@ -328,6 +328,9 @@ int main(int argc, char ** argv) {
         case 'B':
             if (len<2||str[1]!=' ') {
                 fprintf(stderr, "Invalid input\n");
+                #ifdef STRICT_IO
+                exit(1);
+                #endif
                 break;
             }
             res = titleToNodeId(titleData, titleOffsets, nodeCount, str+2);
@@ -348,6 +351,9 @@ int main(int argc, char ** argv) {
             break;
         default:
             fprintf(stderr, "Invalid input\n");
+            #ifdef STRICT_IO
+            exit(1);
+            #endif
             break;
         }
         free(str);
