@@ -18,7 +18,7 @@ void * mapFile(const char * path, int openflags, int mmapprot, int mmapflags, si
         perror("fstat");
         return NULL;
     }
-    *length = sb.st_size;
+    if (length!=NULL) *length = sb.st_size;
     ptr = mmap(NULL, sb.st_size, mmapprot, mmapflags, fd, 0);
     if (ptr==MAP_FAILED) {
         perror("mmap");
