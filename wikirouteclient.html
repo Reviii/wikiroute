@@ -81,7 +81,7 @@ function addBackward(route) {
         let forward = route.forward[i]
         for (let j=0;j<forward.length;j++) {
             let it = forward[j]
-            if (!route.backward[it]) route.backward[it]=[]
+            if (!Object.hasOwn(route.backward,it)) route.backward[it]=[]
             route.backward[it].push(i)
         }
     }
@@ -97,8 +97,8 @@ function draw(route) {
     while (sources.size) {
         let dests = new Set();
         sources.forEach(source => {
+            if (!Object.hasOwn(route.forward,source)) return;
             let dest = route.forward[source]
-            if (!dest) return;
             dest = new Set(dest)
             let a = document.createElement("div")
             a.onclick = function() { goVia(route, this.innerText) }
@@ -143,8 +143,8 @@ function drawGraph(route) {
             cell.id = "graphcell "+source
             cell.onclick = function() { goVia(route, this.innerText) }
             layerDiv.appendChild(cell)
+            if (!Object.hasOwn(route.forward,source)) return;
             let dest = route.forward[source]
-            if (!dest) return;
             dest = new Set(dest)
             dest.forEach(a=>dests.add(a))
         })
@@ -175,8 +175,8 @@ function updateEdges(route) {
         sources.forEach(source => {
             let cell = layerDiv.children[i++]
             let base = "M"+getArrowCoords(svg, cell, true)+" "
+            if (!Object.hasOwn(route.forward,source)) return;
             let dest = route.forward[source]
-            if (!dest) return;
             dest = new Set(dest)
             dest.forEach(dest=>{
                 path += base+"L"+getArrowCoords(svg, document.getElementById("graphcell "+dest), false)+" "
@@ -194,10 +194,10 @@ function updateEdges(route) {
 function handleRemoval(route, thing) {
     if (route.forward[thing].length>0) return;
     delete route.forward[thing]
+    if (!Object.hasOwn(route.backward,thing)) return;
     let parents = route.backward[thing]
-    if (parents===undefined) return
     for (let i=0;i<parents.length;i++) {
-        if (route.forward[parents[i]]===undefined) continue;
+        if (!Object.hasOwn(route.forward,parents[i])) continue;
         route.forward[parents[i]] = route.forward[parents[i]].filter(a=>a!==thing)
         if (route.forward[parents[i]].length===0) handleRemoval(route, parents[i])
     }
@@ -211,8 +211,8 @@ function goVia(route, thing) {
         sources = dests
         dests = new Set();
         sources.forEach(source => {
+            if (!Object.hasOwn(route.forward,source)) {console.log("Source "+source+" no longer exists");return;}
             let dest = route.forward[source]
-            if (!dest) {console.log("Source "+source+" no longer exists");return;}
             dest.forEach(dest=>dests.add(dest))
         })
     }
@@ -221,7 +221,7 @@ function goVia(route, thing) {
         route.sources = [thing]
     } else {
         sources.forEach(source => {
-            if (route.forward[source]==null) {console.log("Source "+source+" no longer exists (2)");return}
+            if (!Object.hasOwn(route.forward,source)) {console.log("Source "+source+" no longer exists (2)");return}
             if (route.forward[source].includes(thing)) {
                 route.forward[source] = [thing]
             } else {
