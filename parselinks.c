@@ -51,6 +51,7 @@ static char ** getTitleListFromFile(FILE * f, size_t * titleCount) {
         } else {
             if (c=='\n') {
                 inTitle = true;
+                firstChar = true;
             }
         }
     )
@@ -168,6 +169,7 @@ static struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount
                 nodeRef ref = title2id(id2title, titleMap, titleBuf.content+1); // titleBuf.content+1, becauce the first char needs to be ignored
                 titleBuf.used = 0;
                 if (ref==(nodeRef)-1||ref==id) continue;
+                assert(titleBuf.content[0]=='r'||titleBuf.content[0]=='l');
                 if (titleBuf.content[0]=='r'&&!nodes[id]->redirect) nodes[id]->redirect = nodes[id]->forward_length+1;
                 nodes[id] = addReference(nodes[id], ref, false);
             }
