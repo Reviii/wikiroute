@@ -157,7 +157,7 @@ static struct wikiNode ** getNodes(FILE * f, char ** id2title, size_t titleCount
     nodeRef id = 0;
     bool inLink = false;
     struct buffer titleBuf = bufferCreate();
-    struct wikiNode ** nodes = malloc(titleCount*sizeof(struct wikiNode *));
+    struct wikiNode ** nodes = malloc((titleCount+1)*sizeof(struct wikiNode *));
     rewind(f);
     nodes[0] = calloc(sizeof(struct wikiNode), 1);
     iterateFile(f, c,
