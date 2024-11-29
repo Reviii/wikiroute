@@ -92,7 +92,7 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
             if (!A.used) break;
             for (size_t i=0;i<A.used/sizeof(nodeRef);i++) {
                 nodeRef ref = content[i];
-                if (distBs[ref]) {
+                if (distBs[ref]&&distBs[ref]!=255) {
                     match = true;
                     distB = distBs[ref]+1;
                     break;
@@ -102,6 +102,7 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
                 nodeRef ref = content[i];
                 newcount++;
                 if (match) continue;
+                if (distAs[ref]==255) continue;
                 struct wikiNode * node = nodes[ref];
                 size_t len = node->forward_length;
                 bufferExpand(&New, len*sizeof(nodeRef));
@@ -128,7 +129,7 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
             if (!B.used) break;
             for (size_t i=0;i<B.used/sizeof(nodeRef);i++) {
                 nodeRef ref = content[i];
-                if (distAs[ref]) {
+                if (distAs[ref]&&distAs[ref]!=255) {
                     match = true;
                     distA = distAs[ref]+1;
                     break;
@@ -138,6 +139,7 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
                 nodeRef ref = content[i];
                 newcount++;
                 if (match) continue;
+                if (distBs[ref]==255) continue;
                 struct wikiNode * node = nodes[ref];
                 size_t len = node->forward_length+node->backward_length;
                 bufferExpand(&New, node->backward_length*sizeof(nodeRef));
@@ -179,7 +181,7 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
             for (size_t i=aIndex[distA-1];i<aIndex[distA];i++) {
                 nodeRef ref = visitedA.u32content[i];
                 struct wikiNode * node = nodes[ref];
-                if (!distAs[ref]) continue;
+                if (!distAs[ref]||distAs[ref]==255) continue;
                 nodeRef * refs = node->references;
                 nodeRef * refMax = refs+node->forward_length;
                 for (;refs<refMax;refs++) { // this loop was hot
@@ -209,7 +211,7 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
             for (size_t i=0;i<matches.used/sizeof(nodeRef);i++) {
                 nodeRef ref = matches.u32content[i];
                 struct wikiNode * node = nodes[ref];
-                if (!distBs[ref]) continue;
+                if (!distBs[ref]||distBs[ref]==255) continue;
                 distBs[ref] = 0;
                 #ifdef JSON
                 if (!firstNestedIteration) printf("],");
@@ -223,7 +225,7 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
                 nodeRef * refs = node->references;
                 for (size_t j=0;j<len;j++) {
                     nodeRef target = refs[j];
-                    if (distBs[target]==distB-1) {
+                    if (distBs[target]==distB-1&&distBs[target]!=255) {
                         #ifdef JSON
                         char * title = getJSONTitle(titles, titleOffsets, target);
                         printf("%s", title+first);
@@ -326,6 +328,7 @@ int main(int argc, char ** argv) {
         switch (c=str[0]) {
         case 'A':
         case 'B':
+        case 'E':
             if (len<2||str[1]!=' ') {
                 fprintf(stderr, "Invalid input\n");
                 #ifdef STRICT_IO
@@ -340,8 +343,12 @@ int main(int argc, char ** argv) {
             }
             if (c=='A') {
                 *(nodeRef *)bufferAdd(&A, sizeof(nodeRef)) = res;
-            } else {
+            } else if (c=='B') {
                 *(nodeRef *)bufferAdd(&B, sizeof(nodeRef)) = res;
+            } else {
+                // maybe bufferadd?
+                distAs[res] = 255;
+                distBs[res] = 255;
             }
             break;
         case 'R':

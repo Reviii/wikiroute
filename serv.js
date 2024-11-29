@@ -71,7 +71,11 @@ function createInstance(lang, nodeFile, titleFile, logFile) {
     me.handleQueue = handleQueue;
     instancesByLang[lang] = me;
 }
-function wikiroute(lang, inp, shouldAbort) {
+function wikiroute(lang, sources, dests, exclude, shouldAbort) {
+    sources = sources.map(a=>a.split("\n").join("").split("\0").join(""));
+    dests = dests.map(a=>a.split("\n").join("").split("\0").join(""));
+    exclude = exclude.map(a=>a.split("\n").join("").split("\0").join(""));
+    let inp = "A "+sources.join("\nA ")+"\nB "+dests.join("\nB ")+"\nE "+exclude.join("\nE ")+"\nR\n"
     return new Promise((resolve, reject) => {
         let instance = instancesByLang[lang];
         instance.logStream.write(inp);
@@ -106,6 +110,7 @@ const server = http.createServer(async (req, res) => {
     search = (search||"").split("&");
     if (path==="/wikiroute") {
         let sources, dests;
+        let exclude = [];
         let lang = "en";
         let ip = req.socket.remoteAddress;
 /*        if (ratelimit.ratelimitin(ip)) {
@@ -120,6 +125,7 @@ const server = http.createServer(async (req, res) => {
             let [key, value] = search[i].split("=", 2).map(decodeURIComponent);
             if (key==="source") sources = value.split("|");
             if (key==="dest") dests = value.split("|");
+            if (key==="exclude") exclude = value.split("|");
             if (key=="lang") lang = value;
         }
 
@@ -138,7 +144,8 @@ const server = http.createServer(async (req, res) => {
                 return;
             }
             if (Array.isArray(data.sources)) sources = data.sources.map(a=>a+'');
-            if (Array.isArray(data.sources)) dests = data.dests.map(a=>a+'');
+            if (Array.isArray(data.dests)) dests = data.dests.map(a=>a+'');
+            if (Array.isArray(data.exclude)) exclude = data.dests.map(a=>a+'');
         } else if (req.method==="OPTIONS") {
             res.removeHeader("Content-Type");
             res.writeHead(200, {"Access-Control-Allow-Methods":"GET, HEAD, POST, OPTIONS"});
@@ -155,15 +162,13 @@ const server = http.createServer(async (req, res) => {
             res.end('{"error":"Sources or destinations not specified"}');
             return;
         }
-        sources = sources.map(a=>a.split("\n").join("").split("\0").join(""));
-        dests = dests.map(a=>a.split("\n").join("").split("\0").join(""));
         if (!instancesByLang[lang]) {
             res.end('{"error":"Language not found"}');
             console.log(lang);
             return;
         }
         let date = Date.now();
-        let route = await wikiroute(lang, "A "+sources.join("\nA ")+"\nB "+dests.join("\nB ")+"\nR\n", ()=>req.socket.destroyed);
+        let route = await wikiroute(lang, sources, dests, exclude, ()=>req.socket.destroyed);
         process.stderr.write("Queue time: "+(Date.now()-date)+"\n");
         res.end(route);
         } catch(err) {
