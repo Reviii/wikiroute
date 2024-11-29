@@ -24,8 +24,8 @@ static void freePrinto(char * format, char * str) {
 
 static bool shouldChooseSideA(int distA, int distB, struct buffer A, struct buffer B) {
     if (distA==1) return true;
-    if (distA>=254) return false;
-    if (distB>=254) return true;
+    if (distA>=252) {fprintf(stderr,"dista limit");return false;}
+    if (distB>=252) return true;
     return A.used<=B.used;
 }
 
@@ -82,7 +82,7 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
         }
         B.used = write;
     }
-    while (!match&&distA+distB<=500) {
+    while (!match&&distA+distB<=252) {
 #ifdef STATS
         fprintf(stderr, "A:%zu B:%zu\n", A.used/sizeof(nodeRef), B.used/sizeof(nodeRef));
 #endif
@@ -161,6 +161,7 @@ static void nodeRoute(struct buffer oA, struct buffer oB, unsigned char * distAs
 #endif
     }
     if (!match) {
+        // TODO: if dist is max print error
         #ifdef JSON
         printf("],\"route\":null}\n");
         #else
@@ -352,6 +353,13 @@ int main(int argc, char ** argv) {
             }
             break;
         case 'R':
+            if (len>1) {
+                fprintf(stderr, "Invalid input\n");
+                #ifdef STRICT_IO
+                exit(1);
+                #endif
+                break;
+            }
             nodeRoute(A, B, distAs, distBs, titleData, nodes, titleOffsets, nodeCount);
             A.used = 0;
             B.used = 0;
