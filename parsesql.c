@@ -6,7 +6,7 @@
 #include "iteratefile.h"
 #include "parsesql.h"
 
-void parseSql(FILE * in, const char * startStr, const enum fieldType * fieldTypes, int recordSize, void (*fp) (const union fieldData *, const enum fieldType *, int)) {
+void parseSql(FILE * in, const char * startStr, const enum fieldType * fieldTypes, int recordSize, void (*fp) (const union fieldData *, void *), void * data) {
     int bracketLevel = 0;
     int len = 0; // length of current string being parsed, -1 indicates end of string
     bool nullstring = false;
@@ -40,7 +40,7 @@ void parseSql(FILE * in, const char * startStr, const enum fieldType * fieldType
         }
         if (record_i>=recordSize) {
             assert(record_i==recordSize);
-            fp(record, fieldTypes, recordSize);
+            fp(record, data);
             record_i = 0;
             bracketLevel--;
         }

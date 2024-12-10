@@ -1,10 +1,9 @@
 #include <stdio.h>
 #include "parsesql.h"
 
-static void printRecord(const union fieldData * record, const enum fieldType * fieldTypes, int recordSize) {
-    (void) fieldTypes;
-    (void) recordSize;
-    if (record[1].integer==0&&record[3].integer==0) printf("%d %s\n", record[0].integer, record[2].string);
+static void printRecord(const union fieldData * record, void * data) {
+    (void) data;
+    if (record[1].integer==0) printf("%d %d\n", record[0].integer, record[2].integer);
 }
 
 static char * startStr = "INSERT INTO `pagelinks` VALUES ";
@@ -13,7 +12,8 @@ int main(int argc, char ** argv) {
         fprintf(stderr, "Usage: feed sql data from stdin\n");
         return 1;
     }
-    enum fieldType types[] = {TYPE_INT,TYPE_INT,TYPE_STR,TYPE_INT,TYPE_IGNORE};
-    parseSql(stdin, startStr, types, sizeof(types)/sizeof(types[0]), &printRecord);
+                              // from  namespace to
+    enum fieldType types[] = {TYPE_INT,TYPE_INT,TYPE_INT};
+    parseSql(stdin, startStr, types, sizeof(types)/sizeof(types[0]), &printRecord, NULL);
     return 0;
 }
