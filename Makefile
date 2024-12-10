@@ -1,5 +1,5 @@
 CFLAGS = -O3 -Wall -Wextra -flto -g
-ALL = extractlinks printlinks-test removeduplicates presort parselinks verifynodes explore route parsepagelinks parsepagetitles parsepagelinks2
+ALL = extractlinks printlinks-test removeduplicates presort parselinks verifynodes explore route parsepagelinks parsepagelinks2
 all: $(ALL)
 
 extractlinks: extractlinks.o printlinks.o
@@ -12,9 +12,6 @@ parsepagelinks: parsepagelinks.o parsesql.o buffer.o
 	$(CC) $^ $(CFLAGS) -o $@
 
 parsepagelinks2: parsepagelinks2.o parsesql.o buffer.o
-	$(CC) $^ $(CFLAGS) -o $@
-
-parsepagetitles: parsepagetitles.o parsesql.o buffer.o
 	$(CC) $^ $(CFLAGS) -o $@
 
 verifynodes: verifynodes.o buffer.o mapfile.o nodeutils.o
