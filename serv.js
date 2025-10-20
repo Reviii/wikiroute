@@ -3,6 +3,10 @@ const child_process = require('child_process');
 const fs = require('fs');
 const repl = require('repl');
 const homepage = fs.readFileSync("wikirouteclient.html");
+let etag = '"'+Math.floor(Date.now()/1000)
+let etag_br = etag+'-br"'
+let etag_gz = etag+'-gz"'
+etag += '"'
 let instancesByLang = {};
 let errCount = 0;
 
@@ -24,11 +28,12 @@ function createInstance(lang, nodeFile, titleFile, logFile) {
     function handleQueue() {
         try {
             let queue = me.queue;
-            let it = queue[0];
             if (queue.length===0) return;
-            while (queue.length>0&&it.shouldAbort()) {
+            let it = queue[0];
+            while (queue.length>1&&it.shouldAbort()) { // setting queue length to 0 causes problems, as other parts of the code will think handleQueue is inactive
                 it.reject(new Error("aborted"));
-                it = queue.shift();
+                queue.shift();
+                it = queue[0] // important
             }
             me.processLine = function(line) {
                 me.processLine = function() { handleErr(new Error("Unexpected line")) };
@@ -72,10 +77,11 @@ function createInstance(lang, nodeFile, titleFile, logFile) {
     instancesByLang[lang] = me;
 }
 function wikiroute(lang, sources, dests, exclude, shouldAbort) {
-    sources = sources.map(a=>a.split("\n").join("").split("\0").join(""));
-    dests = dests.map(a=>a.split("\n").join("").split("\0").join(""));
-    exclude = exclude.map(a=>a.split("\n").join("").split("\0").join(""));
-    let inp = "A "+sources.join("\nA ")+"\nB "+dests.join("\nB ")+"\nE "+exclude.join("\nE ")+"\nR\n"
+    sources = sources.map(a=>"A "+a.split("\n").join("").split("\0").join("")+"\n");
+    dests = dests.map(a=>"B "+a.split("\n").join("").split("\0").join("")+"\n");
+    exclude = exclude.map(a=>"E "+a.split("\n").join("").split("\0").join("")+"\n");
+    let inp = sources.join("")+dests.join("\n")+exclude.join("")+"R\n";
+    inp=inp.split("\x1b").join("")
     return new Promise((resolve, reject) => {
         let instance = instancesByLang[lang];
         instance.logStream.write(inp);
@@ -113,11 +119,6 @@ const server = http.createServer(async (req, res) => {
         let exclude = [];
         let lang = "en";
         let ip = req.socket.remoteAddress;
-/*        if (ratelimit.ratelimitin(ip)) {
-            res.writeHead(429, {"Content-Type": "application/json"});
-            res.end('{"error":"Too many requests"}');
-            return;
-        }*/
         try {
         res.setHeader("Access-Control-Allow-Origin","*");
         res.setHeader("Content-Type","application/json");
@@ -126,7 +127,7 @@ const server = http.createServer(async (req, res) => {
             if (key==="source") sources = value.split("|");
             if (key==="dest") dests = value.split("|");
             if (key==="exclude") exclude = value.split("|");
-            if (key=="lang") lang = value;
+            if (key==="lang") lang = value;
         }
 
         if (req.method==="POST") {
@@ -145,13 +146,20 @@ const server = http.createServer(async (req, res) => {
             }
             if (Array.isArray(data.sources)) sources = data.sources.map(a=>a+'');
             if (Array.isArray(data.dests)) dests = data.dests.map(a=>a+'');
-            if (Array.isArray(data.exclude)) exclude = data.dests.map(a=>a+'');
+            if (Array.isArray(data.exclude)) exclude = data.exclude.map(a=>a+'');
         } else if (req.method==="OPTIONS") {
             res.removeHeader("Content-Type");
             res.writeHead(200, {"Access-Control-Allow-Methods":"GET, HEAD, POST, OPTIONS"});
             res.end();
             return;
-        } else if (!(req.method==="GET"||req.method==="HEAD")) {
+        } else if (req.method==="GET"||req.method==="HEAD") {
+            if (req.headers["if-none-match"]===etag||req.headers["if-none-match"]===etag_br||req.headers["if-none-match"]===etag_gz) {
+                res.setHeader("ETag", etag)
+                res.writeHead(304);
+                res.end();
+                return;
+            }
+        } else {
             res.writeHead(405, {"Allow":"GET, HEAD, POST, OPTIONS"})
             res.end('{"error":"Method not allowed"}');
             return;
@@ -162,16 +170,20 @@ const server = http.createServer(async (req, res) => {
             res.end('{"error":"Sources or destinations not specified"}');
             return;
         }
-        if (!instancesByLang[lang]) {
+        if (!Object.hasOwn(instancesByLang,lang)) {
+            res.writeHead(404);
             res.end('{"error":"Language not found"}');
             console.log(lang);
             return;
         }
         let date = Date.now();
+        let len = instancesByLang[lang].queue.length+1;
         let route = await wikiroute(lang, sources, dests, exclude, ()=>req.socket.destroyed);
-        process.stderr.write("Queue time: "+(Date.now()-date)+"\n");
+        process.stderr.write("Queue time: "+(Date.now()-date)+"/"+len+"\n");
+        if (req.method==="GET"||req.method==="HEAD") res.setHeader("ETag",etag);
         res.end(route);
         } catch(err) {
+            res.writeHead(500);
             res.end('{"error":"Internal Server Error"}');
             if (err.message==="aborted") {
                 console.log("Error in wikiroute req:",err.stack);
