@@ -112,8 +112,10 @@ createInstance("en", "en.nodes.bin", "en.titles.txt",  "wikiroute.log");
 
 const server = http.createServer(async (req, res) => {
     try {
-    let [path, search] = req.url.split("?")
-    search = (search||"").split("&");
+    console.log(req.method+" "+req.url)
+    let url = new URL("http://localhost"+req.url)
+    let path = url.pathname
+    let search = url.searchParams
     if (path==="/wikiroute") {
         let sources, dests;
         let exclude = [];
@@ -122,13 +124,10 @@ const server = http.createServer(async (req, res) => {
         try {
         res.setHeader("Access-Control-Allow-Origin","*");
         res.setHeader("Content-Type","application/json");
-        for (let i=0;i<search.length;i++) {
-            let [key, value] = search[i].split("=", 2).map(decodeURIComponent);
-            if (key==="source") sources = value.split("|");
-            if (key==="dest") dests = value.split("|");
-            if (key==="exclude") exclude = value.split("|");
-            if (key==="lang") lang = value;
-        }
+        if (search.has("source")) sources = search.get("source").split("|");
+        if (search.has("dest")) dests = search.get("dest").split("|");
+        if (search.has("exclude")) exclude = search.get("exclude").split("|");
+        if (search.has("lang")) lang = search.get("lang");
 
         if (req.method==="POST") {
             let data = await getData(req,10E6);
