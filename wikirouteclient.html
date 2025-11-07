@@ -76,7 +76,7 @@ async function getRoute(source, dest, lang) {
 }
 
 function addBackward(route) {
-    route.backward = {}
+    route.backward = Object.create(null)
     for (let i in route.forward) {
         let forward = route.forward[i]
         for (let j=0;j<forward.length;j++) {
@@ -99,14 +99,19 @@ function draw(route) {
         sources.forEach(source => {
             if (!Object.hasOwn(route.forward,source)) return;
             let dest = route.forward[source]
+            if (!dest) return;
             dest = new Set(dest)
             let a = document.createElement("div")
             a.onclick = function() { goVia(route, this.innerText) }
+            a.onkeydown = function(e) {if(e.key==="Enter") {goVia(route, this.innerText);e.stopPropagation()}}
+            a.tabIndex = 0
             a.innerText = source
             pre.appendChild(a);
             dest.forEach(dest => {
                 let b = document.createElement("div")
                 b.onclick = function() { goVia(route, this.innerText.slice(1)) }
+                b.onkeydown = function(e) {if(e.key==="Enter") {goVia(route, this.innerText.slice(1));e.stopPropagation()}}
+                b.tabIndex = 0
                 b.innerText = "\t"+dest
                 pre.appendChild(b)
             })
@@ -142,9 +147,12 @@ function drawGraph(route) {
             cell.innerText = source
             cell.id = "graphcell "+source
             cell.onclick = function() { goVia(route, this.innerText) }
+            cell.onkeydown = function(e) {if(e.key==="Enter") {goVia(route, this.innerText);e.stopPropagation()}}
+            cell.tabIndex = 0
             layerDiv.appendChild(cell)
             if (!Object.hasOwn(route.forward,source)) return;
             let dest = route.forward[source]
+            if (!dest) return;
             dest = new Set(dest)
             dest.forEach(a=>dests.add(a))
         })
@@ -177,6 +185,7 @@ function updateEdges(route) {
             let base = "M"+getArrowCoords(svg, cell, true)+" "
             if (!Object.hasOwn(route.forward,source)) return;
             let dest = route.forward[source]
+            if (!dest) return;
             dest = new Set(dest)
             dest.forEach(dest=>{
                 path += base+"L"+getArrowCoords(svg, document.getElementById("graphcell "+dest), false)+" "
@@ -196,8 +205,10 @@ function handleRemoval(route, thing) {
     delete route.forward[thing]
     if (!Object.hasOwn(route.backward,thing)) return;
     let parents = route.backward[thing]
+    if (parents===undefined) return
     for (let i=0;i<parents.length;i++) {
         if (!Object.hasOwn(route.forward,parents[i])) continue;
+        if (route.forward[parents[i]]===undefined) continue;
         route.forward[parents[i]] = route.forward[parents[i]].filter(a=>a!==thing)
         if (route.forward[parents[i]].length===0) handleRemoval(route, parents[i])
     }
@@ -211,8 +222,9 @@ function goVia(route, thing) {
         sources = dests
         dests = new Set();
         sources.forEach(source => {
-            if (!Object.hasOwn(route.forward,source)) {console.log("Source "+source+" no longer exists");return;}
             let dest = route.forward[source]
+            if (!dest) {console.log("Source "+source+" no longer exists");return;}
+            if (!Object.hasOwn(route.forward,source)) return
             dest.forEach(dest=>dests.add(dest))
         })
     }
@@ -221,7 +233,8 @@ function goVia(route, thing) {
         route.sources = [thing]
     } else {
         sources.forEach(source => {
-            if (!Object.hasOwn(route.forward,source)) {console.log("Source "+source+" no longer exists (2)");return}
+            if (route.forward[source]==null) {console.log("Source "+source+" no longer exists (2)");return}
+            if (!Object.hasOwn(route.forward,source)) return
             if (route.forward[source].includes(thing)) {
                 route.forward[source] = [thing]
             } else {
