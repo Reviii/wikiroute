@@ -3,9 +3,10 @@
 <head><title>wikiroute</title><style>pre > div { width: max-content; } #graph > div > div { border: solid 1px; border-bottom: 0px; max-width: 30ch; } #graph > div > div:last-child { border-bottom: 1px solid; } #graph > div { padding: 0 32px; }</style><meta name="viewport" content="width=device-width, initial-scale=1"></head>
 <body>
 <label>Language:<select id="lang"><option value="en">English</option></select></label><br>
-<label>Source:<input id="source"></label><button onclick="reverse();this.blur()" tabindex=1 aria-label="Swap source and destination"><svg width="12" height="12"><polygon points="0 4 6 4 3 0" /><polygon points="2 12 4 12 4 4 2 4" /><polygon points="8 8 10 8 10 0 8 0" /><polygon points="6 8 9 12 12 8" /></svg></button><br>
+<label>Source:<input id="source"></label><button onclick="reverse();this.blur()" tabindex=1 aria-label="Swap source and destination"><svg width="12" height="12" viewBox="0 0 12 12"><polygon points="2 12 4 12 4 4 6 4 3 0 0 4 2 4" /><polygon points="10 0 8 0 8 8 6 8 9 12 12 8 10 8" /></svg></button><br>
 <label>Destination:<input id="dest"></label><br>
-<label>Show graph:<input id="showGraph" type="checkbox" onclick="drawGraph(route)"></label><br>
+<label>Exclude:<input id="exclude"></label><br>
+<label>Show graph:<input id="showGraph" type="checkbox" onclick="drawGraph(route)" checked></label><br>
 <button onclick="handleInput()">Route</button>
 <script>
 let err = document.createElement("pre")
@@ -20,8 +21,22 @@ addEventListener("resize", ()=>updateEdges(window.route))
 let pre = document.createElement("pre")
 document.body.appendChild(pre)
 
+function normalizeTitle(title) {
+    title = title.trim().replaceAll(/[\u2018\u2019\u201b]/g,"'").replaceAll(/[\u201c\u201d\u201f]/g,'"')
+    if (title.startsWith("https://")&&title.includes(".wikipedia.org/wiki/")) {
+        title = decodeURIComponent(title.split(".wikipedia.org/wiki/")[1]).split("_").join(" ")
+    }
+    return title
+}
 function handleInput() { 
-    getRoute(document.getElementById('source').value, document.getElementById('dest').value, document.getElementById("lang").value).catch(e=>err.innerText=e.message)
+    let source = normalizeTitle(document.getElementById("source").value||document.getElementById("source").placeholder)
+    document.getElementById("source").value = source
+    let dest = normalizeTitle(document.getElementById("dest").value||document.getElementById("dest").placeholder)
+    document.getElementById("dest").value = dest
+    let exclude = normalizeTitle(document.getElementById("exclude").value)
+    document.getElementById("exclude").value = exclude
+    let lang = document.getElementById("lang").value
+    getRoute(source, dest, exclude, lang).catch(e=>err.innerText=e.message)
 }
 document.body.onkeydown = e => {if(e.key==="Enter"&&e.target.nodeName!=="BUTTON") handleInput()}
 
@@ -30,7 +45,7 @@ function firstUp(str) {
     return str.slice(0,1).toUpperCase()+str.slice(1)
 }
 
-async function getRoute(source, dest, lang) {
+async function getRoute(source, dest, exclude, lang) {
     if (window.control) {
         if (confirm("Abort current request?")) {
             window.control.abort()
@@ -39,7 +54,7 @@ async function getRoute(source, dest, lang) {
         }
         return
     }
-    if (window.route&&firstUp(source)===firstUp(window.route.sources[0])&&firstUp(dest)===firstUp(window.route.destinations[0])&&window.route.lang===lang) {
+    if (window.route&&firstUp(source)===firstUp(window.route.req.source)&&firstUp(dest)===firstUp(window.route.req.dest)&&window.route.req.exclude===exclude&&window.route.req.lang===lang) {
        window.route=JSON.parse(oroute)
        draw(window.route)
        drawGraph(window.route)
@@ -52,7 +67,9 @@ async function getRoute(source, dest, lang) {
     window.control = new AbortController()
     let res;
     try {
-        res = await fetch("wikiroute?source="+encodeURIComponent(source)+"&dest="+encodeURIComponent(dest)+"&lang="+encodeURIComponent(lang), {signal:control.signal})
+        let search = "?source="+encodeURIComponent(source)+"&dest="+encodeURIComponent(dest)+"&lang="+encodeURIComponent(lang)
+        if (exclude) search += "&exclude="+encodeURIComponent(exclude)
+        res = await fetch("wikiroute"+search, {signal:control.signal})
     } finally {
         window.control = undefined
         pre.innerText = ""
@@ -65,7 +82,7 @@ async function getRoute(source, dest, lang) {
     if (route.destinations.length===0) {
         err.innerText += "Destination '"+dest+"' not found\n"
     }
-    route.lang = lang;
+    route.req = {source,dest,exclude,lang}
     route.forward = route.route
     delete route.route
     addBackward(route)
