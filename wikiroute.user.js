@@ -1,13 +1,15 @@
 // ==UserScript==
 // @name         wikiroute
 // @namespace    https://wikiroute.revig.nl/
-// @version      0.5.2
+// @version      0.5.3
 // @description  Finds the shortest routes between two wikipedia pages and marks the corresponding links
 // @author       Revi
 // @license      MIT
 // @match        https://*.wikipedia.org/wiki/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=tampermonkey.net
 // @grant        GM_registerMenuCommand
+// @grant        GM.xmlHttpRequest
+// @connect      wikiroute.revig.nl
 // ==/UserScript==
 
 (function() {
@@ -28,8 +30,8 @@
         }
         let source = me;
         try {
-            let res = await fetch(wikirouteServ+"source="+encodeURIComponent(source)+"&dest="+encodeURIComponent(dest)+"&lang="+encodeURIComponent(lang));
-            sessionStorage.route = await res.text();
+            let res = await GM.xmlHttpRequest({url:wikirouteServ+"source="+encodeURIComponent(source)+"&dest="+encodeURIComponent(dest)+"&lang="+encodeURIComponent(lang),headers:{Referer:location.origin+"/",Origin:location.origin}});
+            sessionStorage.route = res.responseText;
             sessionStorage.articlesVisited=JSON.stringify([]);
         } catch(err) {
             alert(err);
@@ -62,11 +64,11 @@
         } else {
             let exclude;
             try { exclude = JSON.parse(sessionStorage.articlesVisited) } catch(e) { exclude=[];console.log("failed to parse articlesVisited") }
-            let res = await fetch(wikirouteServ+"lang="+encodeURIComponent(lang), {method:"POST",body:JSON.stringify({sources,dests,exclude})});
-            route = await res.json();
+            let res =     await GM.xmlHttpRequest({url:wikirouteServ+"lang="+encodeURIComponent(lang), method:"POST",data:JSON.stringify({sources,dests,exclude}),headers:{Referer:location.origin+"/",Origin:location.origin},responseType:"json"});
+            route = res.response;
             if (route.route==null) {
-                let res = await fetch(wikirouteServ+"lang="+encodeURIComponent(lang), {method:"POST",body:JSON.stringify({sources,dests})});
-                route = await res.json();
+                let res = await GM.xmlHttpRequest({url:wikirouteServ+"lang="+encodeURIComponent(lang), method:"POST",data:JSON.stringify({sources,dests}),headers:{Referer:location.origin+"/",Origin:location.origin},responseType:"json"});
+                route = res.response;
             }
             console.log("source find ratio: "+route.sources.length/sources.length)
             if (route.route==null) {
@@ -130,7 +132,7 @@
         let redirectMap = new Map();
         if (!isWikipedia) return redirectMap;
         for (let i=0;i<toResolve.length;i+=50) {
-            let requestURL = "/w/api.php?action=query&titles="+toResolve.slice(i,Math.min(i+50,toResolve.length)).map(encodeURIComponent).join("|")+"&formatversion=2&redirects=1&format=json";
+            let requestURL = location.protocol+"//"+location.host+"/w/api.php?action=query&titles="+toResolve.slice(i,Math.min(i+50,toResolve.length)).map(encodeURIComponent).join("|")+"&formatversion=2&redirects=1&format=json";
             console.time("fetch");
             let res = await fetch(requestURL, {headers:{"api-user-agent":"wikiroute.revig.nl/wikiroute.user.js"}});
             console.timeEnd("fetch");
